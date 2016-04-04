@@ -917,7 +917,7 @@ void ofApp::onKeyframe(ofxPlaylistEventArgs& args){
 void ofApp::sendMessageToServer(string type){
 
     //return;
-
+	serverState = "Message sent " + type;
 
     ofLog() << "send servermessage " + type + " " + ofGetTimestampString("%Y-%n-%e T%H:%M:%S");
 
@@ -1316,18 +1316,17 @@ void ofApp::whistleButtonPressed(){
 void ofApp::keyPressed(int key){
 
     //*
-	if(key == 's') {
-		gui.saveToFile("settings.xml");
-	}
-	if(key == 'l') {
-		gui.loadFromFile("settings.xml");
-	}
+// 	if(key == 's') {
+// 		gui.saveToFile("settings.xml");
+// 	}
+// 	if(key == 'l') {
+// 		gui.loadFromFile("settings.xml");
+// 	}
     if(key == 'w') {
-	      if (debugToggle == true){
-		debugToggle = false;
-	      } else {debugToggle = true;}
-
-		onWhistle(1000, 0.5);
+		onWhistle(1000, 1);
+	}
+	    if(key == 'c') {
+		sendMessageToServer("whistle");
 	}
     //*/
 
