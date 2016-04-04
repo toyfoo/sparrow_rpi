@@ -17,6 +17,8 @@ void ofApp::setup()
     eyePixel = 48;
     beakPixel = 49;
     maintenancePixel = 0;
+    onHour = 7;
+    offHour = 22;
 	limitHours = false;
 
     //gamesettings
@@ -166,7 +168,7 @@ void ofApp::setup()
         settingsXML.addChild("limitHours");
     }
     if (settingsXML.getValue("//limitHours") == "") {
-        settingsXML.setValue("//limitHours", ofToString(offHour));
+        settingsXML.setValue("//limitHours", ofToString(limitHours));
     } else {limitHours = settingsXML.getValue<bool>("//limitHours");}
     
     if(!settingsXML.exists("//eyeLED")) {settingsXML.addChild("eyeLED");}
@@ -273,6 +275,7 @@ void ofApp::setup()
 
 	// initiate eye/beak animation
     animateBeakAndEyeAmbientAnim();
+    sendMessageToServer(onStartup);
 
 }
 
@@ -731,7 +734,7 @@ void ofApp::animateBeakAndEyeAmbientAnim() {
 bool ofApp::interactionAllowed() {
     //return true;
 
-    if ((ofGetHours() > onHour && ofGetHours() <= offHour) /*|| debugToggle || timeIsOff*/) {
+    if ((ofGetHours() > onHour && ofGetHours() <= offHour || !limitHours) /* || timeIsOff*/) {
         return true;
    } else {
         return false;
