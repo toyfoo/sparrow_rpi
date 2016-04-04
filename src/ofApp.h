@@ -46,51 +46,22 @@ extern "C" {
 
 
 class ofApp : public ofBaseApp{
+	
+	//debugging
+	bool load_ws281xlib;
+	string serverState;
 
     //WHISTLEDETECTOR
     ofxIntegratedWhistleDetector detector;
     ofxWhistleSequenceDetector sequenceDetector;  // state machine
     deque<pair<ofxWhistleSequenceDetector::Transition, ofxIntegratedWhistleDetector::Whistle> > transitions;
-
-
 	static const size_t MaxTransitions = 20; // Count of last transitions and transition queue (with whistles those cause transitions) to be printed on screen
 
-
+	//LED-related
     int eyePixel;
     int beakPixel;
     int maintenancePixel;
-
-    ofxColorSlider colorEye;
-    ofxColorSlider colorBeak;
-    ofxColorSlider colorBody;
-    ofxToggle editColor;
-    ofxToggle listen;
-    ofxButton whistleButton;
-    ofxLabel screenSize;
-    ofxPanel gui;
-    ofxPanel guiColor;
-    ofxIntSlider HzPerWindow;
-    ofxIntSlider powerThresholdPercent;
-    ofxIntSlider msecsPerWhistleDuration;
-    ofxIntSlider hzPerFrequencyDeviation;
-    ofxLabel whistleLabel;
-    ofxToggle debugToggle;
-    ofxFloatSlider debugWhistleCertainty;
-    ofxIntSlider debugWhistleFrequency;
-    ofxToggle chromeToggle;
-
-    int serialSleepMillis;
-
-    ofXml settingsXML;
-    ofXml logXML;
-    string xmlStructure;
-    string xmlMessage;
-
-    //Pixel *pixels;
     vector<Pixel*> pixels;
-    int whistlesToSend;
-
-
     ofColor maintenanceNoError;
     ofColor maintenanceError;
     ofColor eyeWhistleDetected;
@@ -105,41 +76,41 @@ class ofApp : public ofBaseApp{
     ofColor status400severe; // connection error - about to set whistles to zero
     ofColor status400off; // connection error - no longer records whistles
     ofColor status400webserver;
-
     ofColor status461; // no active campaign
 
-
-    //vector<ofColor> randomBodyColors;
-
-    vector<int> randomPixelOrder;
-
-    ofxPlaylist controlPlaylist;
-    ofxPlaylist animPlaylist;
-    ofxPlaylist connectionPlaylist;
-
-    //float bodyLerpAmount;
-    int animateRandomPixelUntil;
-
-    //bool bodyIsBlack;
-    int whistleState;
+	// XML & communication
+    ofXml settingsXML;
+    ofXml logXML;
+    string xmlStructure;
+    string xmlMessage;
+    int whistlesToSend; // the whistles to be sent (introducted for in case connection is down)
     bool freshMessage;
     bool isLoading; //is connecting to server
     bool hasConnectionError; // the most general error, includes connection and webserver error
     bool hasSevereConnectionError; // sustained internet connectivity issues
     bool webserverDown; // only the sparrows webserver down
-    //bool hasConnectionTest;
-    //bool firstConnectionTest;
-    bool load_ws281xlib;
-    bool limitHours;
+    string objectID; //hash, object identifier to send to server
+
+
+	//animation related
+    vector<int> randomPixelOrder;
+    int animateRandomPixelUntil;
+    ofxPlaylist controlPlaylist;
+    ofxPlaylist animPlaylist;
+    ofxPlaylist connectionPlaylist;
+    float fadeInTime;
+    float fadeVariationTime;
+    int discoLevel; // NEW* used to change the speed of the disco animation
+    int discoChance;
+    int discoTried;
+
     
-
-
+    int whistleState;
+    float lastWhistleFrequency; // used to log the frequency, once the timestamp is returned from the server.
+    bool limitHours;
     bool noActiveCampaign;
     bool timeIsOff;
     int serverTimeOffHack;
-
-
-    string objectID; //hash, object identifier to send to server
     int onHour;
     int offHour;
     int gameType;
@@ -148,14 +119,6 @@ class ofApp : public ofBaseApp{
     float timeoutTimeStates;
     float timeoutTimeWhistles;
     float fadeOutTime;
-    float fadeInTime;
-    float fadeVariationTime;
-
-    int discoLevel; // NEW* used to change the speed of the disco animation
-    int discoChance;
-    int discoTried;
-
-	
 
     unsigned long long previousDebugWhistleTime;
     unsigned long long previousWhistleTime;
@@ -163,11 +126,28 @@ class ofApp : public ofBaseApp{
     bool whistleIsCertain;
 
     float lastWhistleTime; // in seconds, ofGetElapsedTimef()
-    //int whistlesToSend; // the whistles to be sent (introducted for in case connection is down)
     ofTrueTypeFont font;
 
 
-    float lastWhistleFrequency; // used to log the frequency, once the timestamp is returned from the server.
+	// GUI (unused for now)
+    ofxColorSlider colorEye;
+    ofxColorSlider colorBeak;
+    ofxColorSlider colorBody;
+    ofxToggle editColor;
+    ofxToggle listen;
+    ofxButton whistleButton;
+    ofxLabel screenSize;
+    ofxPanel gui;
+    ofxPanel guiColor;
+//     ofxIntSlider HzPerWindow;
+//     ofxIntSlider powerThresholdPercent;
+//     ofxIntSlider msecsPerWhistleDuration;
+//     ofxIntSlider hzPerFrequencyDeviation;
+    ofxLabel whistleLabel;
+    ofxToggle debugToggle;
+    ofxFloatSlider debugWhistleCertainty;
+    ofxIntSlider debugWhistleFrequency;
+    ofxToggle chromeToggle;
 
 
 public:
