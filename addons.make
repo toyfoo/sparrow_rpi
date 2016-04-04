@@ -1,8 +1,6 @@
 ofxGui
 ofxSvg
-ofxIO
 ofxMSAInteractiveObject
 ofxPlaylist
-ofxSerial
 ofxTime
 ofxHwdPlugin

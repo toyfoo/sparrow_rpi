@@ -11,7 +11,6 @@
 #include "ofxTime.h"
 
 //WHISTLEDETECTOR
-//#include "ofxIntegratedWhistleDetector.h"
 #include <ofxIntegratedWhistleDetector.h>
 #include <ofxWhistleSequenceDetector.h>
 
