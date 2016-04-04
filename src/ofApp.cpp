@@ -70,7 +70,7 @@ void ofApp::setup()
     hasConnectionError = false;
     hasSevereConnectionError = false;
     connectionDownTime = 0;
-    
+
 
     timeIsOff = false; //by default, the time can be off so we're sure the whistle function runs until the time is synchronised with the time servers by the system
     lastWhistleFrequency = 0;
@@ -134,10 +134,10 @@ void ofApp::setup()
 
     // load xml settings
     if (settingsXML.load("sparrowsSettings.xml") ){
-        ofLog(OF_LOG_NOTICE, "sparrowsSettings.xml loaded!");
+        ofLog(OF_LOG_NOTICE, "sparrowsSettings.xml loaded");
 	} else {
-        settingsXML.addChild("Sparrows");
-        settingsXML.setTo("Sparrows");
+        settingsXML.addChild("Sparrow");
+        settingsXML.setTo("Sparrow");
         ofLog(OF_LOG_NOTICE, "unable to load sparrowsSettings.xml check /bin/data/ folder");
 	}
 
@@ -149,7 +149,7 @@ void ofApp::setup()
     } else {
         objectID = settingsXML.getValue("//objectId");
     }
-    
+
     if(!settingsXML.exists("//onHour")) {
         settingsXML.addChild("onHour");
     }
@@ -170,19 +170,19 @@ void ofApp::setup()
     if (settingsXML.getValue("//limitHours") == "") {
         settingsXML.setValue("//limitHours", ofToString(limitHours));
     } else {limitHours = settingsXML.getValue<bool>("//limitHours");}
-    
+
     if(!settingsXML.exists("//eyeLED")) {settingsXML.addChild("eyeLED");}
     if (settingsXML.getValue("//eyeLED") == "") {settingsXML.setValue("//eyeLED", ofToString(eyePixel));
     } else {eyePixel = settingsXML.getValue<int>("//eyeLED");}
-    
+
     if(!settingsXML.exists("//beakLED")) {settingsXML.addChild("beakLED");}
     if (settingsXML.getValue("//beakLED") == "") {settingsXML.setValue("//beakLED", ofToString(beakPixel));
     } else {beakPixel = settingsXML.getValue<int>("//beakLED");}
-   
+
     if(!settingsXML.exists("//maintenanceLED")) {settingsXML.addChild("maintenanceLED");}
     if (settingsXML.getValue("//maintenanceLED") == "") {settingsXML.setValue("//maintenanceLED", ofToString(maintenancePixel));
     } else {maintenancePixel = settingsXML.getValue<int>("//maintenanceLED");}
-    
+
     if(!settingsXML.exists("//minimumWhistleDuration")) {settingsXML.addChild("minimumWhistleDuration");}
     if (settingsXML.getValue("//minimumWhistleDuration") == "") {settingsXML.setValue("//minimumWhistleDuration", ofToString(msecsPerWhistleDuration));
     } else {msecsPerWhistleDuration = settingsXML.getValue<int>("//minimumWhistleDuration");}
@@ -248,7 +248,7 @@ void ofApp::setup()
     //sendMessageToServer("onStartup");
 
     seedRandomPixelOrder(); //first seed of the randompixelorder
-    
+
     // setup ws281x
     if (load_ws281xlib){
 		const rpi_hw_t *piVersion = rpi_hw_detect();
@@ -275,7 +275,7 @@ void ofApp::setup()
 
 	// initiate eye/beak animation
     animateBeakAndEyeAmbientAnim();
-    
+
     //first message to server to test connection
     sendMessageToServer("onStartup");
 
@@ -495,12 +495,14 @@ void ofApp::draw(){
 
         std::stringstream ss;
 
-        ss << "Sparrows v.1.0 " << std::endl;
-        ss << "FPS: " << ofGetFrameRate() << std::endl;
-        ss << "whistleState: " << whistleState << std::endl;
-        ss << "discoLevel: " << discoLevel << std::endl;
-        ss << "time: " << ofGetHours() << ":" << ofGetMinutes() << " in time?: " << (ofGetHours() > onHour && ofGetHours() <= offHour) << std::endl;
-		ss << "serverState: " << serverState << std::endl;
+        ss << "Sparrow version 1.0 " << std::endl;
+        //ss << "FPS: " << ofGetFrameRate() << std::endl;
+        ss << "State: " << whistleState << std::endl;
+        //ss << "discoLevel: " << discoLevel << std::endl;
+        ss << "System time: " << ofGetHours() << ":" << ofGetMinutes() << std::endl;
+        ss << "System time is within allowed time: " << (ofGetHours() > onHour && ofGetHours() <= offHour) << std::endl;
+        ss << "Time restriction enabled: " << limitHours << std::endl;
+		ss << "Server: " << serverState << std::endl;
 
         ofDrawBitmapString(ss.str(), ofVec2f(3, 90));
 
@@ -917,7 +919,7 @@ void ofApp::onKeyframe(ofxPlaylistEventArgs& args){
 void ofApp::sendMessageToServer(string type){
 
     //return;
-	serverState = "Message sent " + type;
+
 
     ofLog() << "send servermessage " + type + " " + ofGetTimestampString("%Y-%n-%e T%H:%M:%S");
 
@@ -930,6 +932,7 @@ void ofApp::sendMessageToServer(string type){
             freshMessage = true;
             //cout << "whistle: http://whistle.city/activityapi?objectId=" + objectID + "&activityType=whistle&gameType=" + ofToString(gameType) << endl;
             ofLoadURLAsync("http://www.whistle.city/activityapi?objectId=" + objectID + "&activityType=whistle&gameType=" + ofToString(gameType), "whistle");
+            serverState = "Message sent " + type;
             isLoading = true;
         }
     }
@@ -937,18 +940,21 @@ void ofApp::sendMessageToServer(string type){
         if (!isLoading) {
             //cout << "whistle_fromFailedConnection: http://whistle.city/activityapi?objectId=" + objectID + "&activityType=whistle&gameType=" + ofToString(gameType) << endl;
             ofLoadURLAsync("http://www.whistle.city/activityapi?objectId=" + objectID + "&activityType=whistle&gameType=" + ofToString(gameType), "whistle_fromFailedConnection");
+            serverState = "Message sent " + type;
             isLoading = true;
         }
     }
     if (type == "whistle_delayed") {
         if (!isLoading) {
             ofLoadURLAsync("http://www.whistle.city/activityapi?objectId=" + objectID + "&activityType=whistle&gameType=" + ofToString(gameType), "whistle_delayed");
+            serverState = "Message sent " + type;
             isLoading = true;
         }
     }
     if (type == "onStartup") {
         if (!isLoading) {
             ofLoadURLAsync("http://www.whistle.city/activityapi?objectId=" + objectID + "&activityType=ping&gameType=" + ofToString(gameType), "onStartup");
+            serverState = "Message sent " + type;
             isLoading = true;
         }
     }
@@ -997,7 +1003,7 @@ void ofApp::urlResponse(ofHttpResponse & response){
 
 
             if (response.status == 200) { // google works
-            	serverState == "BAD: Google works, www.whistle.city is down";
+            	serverState = "BAD: Google works, www.whistle.city is down";
                 webserverDown = true; // the sparrows webserver
                 pixels[maintenancePixel] -> clearPlaylist();
                 pixels[maintenancePixel] -> addBlinkLoop(status400webserver, 100.f, 500.f, 10.f, 200.f);
@@ -1009,8 +1015,8 @@ void ofApp::urlResponse(ofHttpResponse & response){
             }
 
             else { // internet connection is down
-				
-				serverState == "BAD: No internet connection";
+
+				serverState = "BAD: No internet connection";
                 ofRemoveAllURLRequests();
 
                 pixels[maintenancePixel] -> clearPlaylist();
@@ -1028,13 +1034,13 @@ void ofApp::urlResponse(ofHttpResponse & response){
 
 
             if (response.status == 200) { // great, google works, so connection is back on
-            	serverState == "BAD: Google works, www.whistle.city is down";
+            	serverState = "BAD: Google works, www.whistle.city is down";
                 connectionPlaylist.addKeyFrame(Action::pause(20000.f));
                 connectionPlaylist.addKeyFrame(Action::event(this, "retryWebserverConnection"));
             }
 
             else { // google still doesn't work
-				serverState == "BAD: No internet connection";
+				serverState = "BAD: No internet connection";
                 unsigned long long currentTime = ofGetElapsedTimeMillis();
                 if (currentTime - connectionDownTime > 3 * 86400000) { // 3 days
                     hasSevereConnectionError = true;
@@ -1067,8 +1073,8 @@ void ofApp::urlResponse(ofHttpResponse & response){
 
     }
     else if (response.status == 200) { // HTTP response of all other (whistle & delayed whistle) connections
-		
-		serverState == "OK: Response from www.whistle.city";
+
+		serverState = "OK: Response from www.whistle.city";
         isLoading = false;
 
         if (hasConnectionError) {
@@ -1083,17 +1089,19 @@ void ofApp::urlResponse(ofHttpResponse & response){
 
         serverResponseXML.loadFromBuffer(response.data.getText());
 
-        //cout << serverResponseXML.toString() << endl;
+        cout << serverResponseXML.toString() << endl;
 
         ofLog() << "http response " << response.status << " " << response.error << " " << response.request.name << "ServerMessage: " << serverResponseXML.getValue("//status") << " time: " << ofGetTimestampString("%Y-%n-%e T%H:%M:%S");
 
-        if(serverResponseXML.exists("//onHour")) {
+        if(serverResponseXML.exists("//profileColor")) {
+
             if (serverResponseXML.exists("//onHour") && serverResponseXML.exists("//offHour") && serverResponseXML.getValue("//onHour") != "" && serverResponseXML.getValue("//offHour") != "") {
                 onHour = serverResponseXML.getValue<int>("//onHour");
                 offHour = serverResponseXML.getValue<int>("//offHour");
                 settingsXML.setValue("//onHour", serverResponseXML.getValue("//onHour"));
                 settingsXML.setValue("//offHour", serverResponseXML.getValue("//offHour"));
             }
+
             if (serverResponseXML.exists("//gameType") && serverResponseXML.getValue("//gameType") != "" && serverResponseXML.getValue("//gameType") != "0") {
                 gameType = serverResponseXML.getValue<int>("//gameType");
                 settingsXML.setValue("//gameType", serverResponseXML.getValue("//gameType"));
@@ -1104,6 +1112,8 @@ void ofApp::urlResponse(ofHttpResponse & response){
                 bodycolorstring = bodycolorstring.replace(0, 1, "0x");
                 profileColor = ofColor::fromHex(ofHexToInt(bodycolorstring));
             }
+
+            /*
             if (serverResponseXML.exists("//serverTime") && serverResponseXML.getValue("//serverTime") != "") { //ISO8601 - eg. 2014-08-21T12:29:51.652Z
                 Poco::DateTime max1;
                 try
@@ -1129,7 +1139,7 @@ void ofApp::urlResponse(ofHttpResponse & response){
                         //cout << "setting time is false!" << endl;
                     }
 
-                    */
+
                 }
                 catch (const Poco::SyntaxException& exc)
                 {
@@ -1137,13 +1147,14 @@ void ofApp::urlResponse(ofHttpResponse & response){
                 }
 
             }
+            */
             if (serverResponseXML.exists("//status") && serverResponseXML.getValue("//status") != "") {
 
                 //cout << "serverResponseXML.getValue(//status) " << serverResponseXML.getValue("//status") << endl;
 
                 // status OK
                 if (serverResponseXML.getValue("//status") == "200") { //whistle was correctly received
-				serverState == "OK: Whistle.city received whistle";
+				serverState = "OK: Whistle.city received whistle";
                 noActiveCampaign = false;
 
                     if(response.request.name == "whistle"){
@@ -1159,7 +1170,7 @@ void ofApp::urlResponse(ofHttpResponse & response){
                         }
 
                         if (whistlesToSend > 0) { // if there were unsent wistles, send them now. this is delayed, since the website interface flashes with intensive use
-                            serverState == "OK: Sending unsent whistles";
+                            serverState = "OK: Sending unsent whistles";
                             connectionPlaylist.addKeyFrame(Action::pause(1500.f));
                             connectionPlaylist.addKeyFrame(Action::event(this, "send_whistle_delayed"));
                         }
@@ -1167,14 +1178,14 @@ void ofApp::urlResponse(ofHttpResponse & response){
                     else if(response.request.name == "whistle_delayed"){
                         whistlesToSend--;
                         logXML.setValue("//unsent", ofToString(whistlesToSend));
-                        
+
                         if (whistlesToSend > 0) {
-                        	serverState == "OK: Sending unsent whistles";
+                        	serverState = "OK: Sending unsent whistles";
                             connectionPlaylist.addKeyFrame(Action::pause(1000.f));
                             connectionPlaylist.addKeyFrame(Action::event(this, "send_whistle_delayed"));
                         }
                         if (whistlesToSend == 0) {
-                        	serverState == "OK: Finished sending unsent whistles";
+                        	serverState = "OK: Finished sending unsent whistles";
                         }
                     }
 
@@ -1182,7 +1193,7 @@ void ofApp::urlResponse(ofHttpResponse & response){
                 else if (serverResponseXML.getValue("//status") == "461") { // status no active campaign
 
                     noActiveCampaign = true;
-                    serverState == "OK: There is no active campaign";
+                    serverState = "OK: There is no active campaign";
 
                     if (whistlesToSend > 0) { // unsent whistles from this and previous campain should be removed
                         whistlesToSend = 0;
@@ -1196,11 +1207,11 @@ void ofApp::urlResponse(ofHttpResponse & response){
                     }
                 }
                 else if ((serverResponseXML.getValue("//status") == "400" || serverResponseXML.getValue("//status") == "461") && response.request.name == "onStartup") { // status no active campaign
-                    serverState == "OK: Server connection works. Loaded settings.";
+                    serverState = "OK: Server connection works. Loaded settings.";
                     ofLogNotice("Server connection works. Loaded settings.");
                 }
                 else {
-                    serverState == "OK: Unimplemented server error. Correct SparrowID?";
+                    serverState = "OK: Unimplemented server error. Correct SparrowID?";
                     ofLogError("Unimplemented server return status: " + serverResponseXML.getValue("//status") + " error: " + serverResponseXML.getValue("//error"));
                     addLogItem(serverResponseXML.getValue("//serverTime"), ofToString(whistleState), serverResponseXML.getValue("//status"), 0.f); //logXML.save("log.xml");
                     pixels[beakPixel] -> addBlink(2, status400);
@@ -1213,7 +1224,7 @@ void ofApp::urlResponse(ofHttpResponse & response){
     else {
 
         if (!hasConnectionError) { // in case of connection error, run this only once
-            serverState == "BAD: There is a connection error. Checking Google.";
+            serverState = "BAD: There is a connection error. Checking Google.";
             //cout << "one time connection error run" << endl;
             ofLog() << "connection error. time: " << ofGetTimestampString("%Y-%n-%e T%H:%M:%S"); //ofGetTimestampString("%Y-%n-%e T%H:%M:%S:%i%z")
             hasConnectionError = true;
@@ -1222,7 +1233,7 @@ void ofApp::urlResponse(ofHttpResponse & response){
             ofLoadURLAsync("http://google.com/robots.txt", "connectionTestFirst");
 
         } else { // connection error is already registered
-			serverState == "BAD: There is still a connection error. Checking Google.";
+			serverState = "BAD: There is still a connection error. Checking Google.";
             connectionPlaylist.clear(); // if there is a connection error, try again in 30 seconds
             connectionPlaylist.addKeyFrame(Action::pause(20000.f));
             connectionPlaylist.addKeyFrame(Action::event(this, "connectionTest"));

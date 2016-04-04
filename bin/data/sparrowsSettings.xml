@@ -1,13 +1,12 @@
-<Sparrows>
-	<objectId>VISIT_WWW.WHISTLE.CITY_TO_GENERATE_OBJECT_ID</objectId>
-	<onHour>8</onHour>
-	<offHour>23</offHour>
-    <limitHours>0</limitHours>
-    <eyeLED>42</eyeLED>
-    <beakLED>49</beakLED>
-    <maintenanceLED>49</maintenanceLED>
-    <maintenanceLED><maintenanceLED>
-    <gameType>1</gameType>
-    <unsent>0</unsent>
-    <profileColor>#CC6633</profileColor>
-</Sparrows>
+<Sparrow>
+	<objectId>6C3aCZoYJGA7yA6oc</objectId>
+	<onHour>7</onHour>
+	<offHour>22</offHour>
+	<limitHours>0</limitHours>
+	<eyeLED>48</eyeLED>
+	<beakLED>49</beakLED>
+	<maintenanceLED>0</maintenanceLED>
+	<minimumWhistleDuration>150</minimumWhistleDuration>
+	<profileColor>#FF8000</profileColor>
+	<gameType>1</gameType>
+</Sparrow>
