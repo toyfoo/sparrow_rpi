@@ -275,7 +275,9 @@ void ofApp::setup()
 
 	// initiate eye/beak animation
     animateBeakAndEyeAmbientAnim();
-    sendMessageToServer(onStartup);
+    
+    //first message to server to test connection
+    sendMessageToServer("onStartup");
 
 }
 
@@ -544,7 +546,7 @@ void ofApp::seedRandomPixelOrder() {
 //--------------------------------------------------------------
 void ofApp::animateFillSimpleColors() {
 
-    for (int i = 0; i < randomPixelOrder.size(); i++) {
+    for (unsigned int i = 0; i < randomPixelOrder.size(); i++) {
         int cPixel = randomPixelOrder[i]; //current pixel
 
         pixels[cPixel] -> addPause(fadeVariationTime * i, true);
@@ -562,7 +564,7 @@ void ofApp::animateFillSimpleColors() {
 //--------------------------------------------------------------
 void ofApp::animateFillShiftPushColors() {
 
-    for (int i = 0; i < randomPixelOrder.size(); i++) {
+    for (unsigned int i = 0; i < randomPixelOrder.size(); i++) {
         int cPixel = randomPixelOrder[i]; //current pixel
         pixels[cPixel] -> addPause(fadeVariationTime * i, true);
         pixels[cPixel] -> addFade(shiftColor(profileColor), fadeInTime, true); // fadintime was 100.f
@@ -587,7 +589,7 @@ void ofApp::animateFillShiftHueColors() {
 
     int it = 0;
 
-    for (int i = 0; i < randomPixelOrder.size(); i++) {
+    for (unsigned int i = 0; i < randomPixelOrder.size(); i++) {
         int cPixel = randomPixelOrder[i]; //current pixel
         pixels[cPixel] -> addPause(fadeVariationTime * i, true);
         pixels[cPixel] -> addFade(shiftHue(tempToColors[it]), fadeInTime/2, true);
@@ -631,14 +633,14 @@ void ofApp::animateFillDisco(int mode) {
 
     ofRandomize(tempToColors); // identical to std::random_shuffle (tempToColors.begin(), tempToColors.end());
 
-    for (int i = 0; i < randomPixelOrder.size(); i++) {
+    for (unsigned int i = 0; i < randomPixelOrder.size(); i++) {
         int cPixel = randomPixelOrder[i]; //current pixel
         pixels[cPixel] -> clearCuelist();
     }
 
     for (int j = 0; j < animationamount; j++) {
         int it = 0;
-        for (int i = 0; i < randomPixelOrder.size(); i++) {
+        for (unsigned int i = 0; i < randomPixelOrder.size(); i++) {
             int cPixel = randomPixelOrder[i]; //current pixel
             pixels[cPixel] -> addFade(tempToColors[it], fade, true);
             pixels[cPixel] -> addPause(pause, true);
@@ -647,7 +649,7 @@ void ofApp::animateFillDisco(int mode) {
         ofRandomize(tempToColors);
     }
 
-    for (int i = 0; i < randomPixelOrder.size(); i++) {
+    for (unsigned int i = 0; i < randomPixelOrder.size(); i++) {
         int cPixel = randomPixelOrder[i]; //current pixel
         pixels[cPixel] -> addPause(fadeVariationTime * i, false);
         pixels[cPixel] -> addFade(ofColor::black, fadeOutTime, false);
@@ -732,9 +734,7 @@ void ofApp::animateBeakAndEyeAmbientAnim() {
 
 //--------------------------------------------------------------
 bool ofApp::interactionAllowed() {
-    //return true;
-
-    if ((ofGetHours() > onHour && ofGetHours() <= offHour || !limitHours) /* || timeIsOff*/) {
+    if ((ofGetHours() > onHour && ofGetHours() <= offHour) || !limitHours /* || timeIsOff*/) {
         return true;
    } else {
         return false;
