@@ -1,20 +1,27 @@
 /// version 1.0 - 20 march 2016
 /// by thomas laureyssens t@toyfoo.com
 
+
+// todo: 
+// time limits
+// logs on/of
+// retry on failure
+
 #pragma once
 #include "ofMain.h"
 #include "ofxPlaylist.h"
 #include "Pixel.h"
 #include "ofxGui.h"
 #include "ofxSvg.h"
-#include <deque>
 #include "ofxTime.h"
 
 //WHISTLEDETECTOR
+#define soundLoad false
+#if soundLoad
+#include <deque>
 #include <ofxIntegratedWhistleDetector.h>
 #include <ofxWhistleSequenceDetector.h>
-
-#define pixelAmount 50 // the amount of LED's on a sparrow
+#endif
 
 //--For WS281x RGB LEDS--
 #ifdef __arm__
@@ -37,11 +44,12 @@ extern "C" {
 	#include "pwm.h"
 	#include "ws2811.h"
 }
-#endif
-
 #define TARGET_FREQ                              WS2811_TARGET_FREQ
 #define GPIO_PIN                                 18
 #define DMA                                      5
+#endif
+
+#define pixelAmount 50 // the amount of LED's on a sparrow
 
 
 class ofApp : public ofBaseApp{
@@ -51,10 +59,12 @@ class ofApp : public ofBaseApp{
 	string serverState;
 
     //WHISTLEDETECTOR
+    #if soundLoad
     ofxIntegratedWhistleDetector detector;
     ofxWhistleSequenceDetector sequenceDetector;  // state machine
     deque<pair<ofxWhistleSequenceDetector::Transition, ofxIntegratedWhistleDetector::Whistle> > transitions;
 	static const size_t MaxTransitions = 20; // Count of last transitions and transition queue (with whistles those cause transitions) to be printed on screen
+    #endif
 
 	//LED-related
     int eyePixel;
@@ -89,6 +99,9 @@ class ofApp : public ofBaseApp{
     bool hasSevereConnectionError; // sustained internet connectivity issues
     bool webserverDown; // only the sparrows webserver down
     string objectID; //hash, object identifier to send to server
+    int serverConnectionRetries;
+    string serverResponseRaw;
+    bool connectionAlive;
 
 
 	//animation related
@@ -97,6 +110,7 @@ class ofApp : public ofBaseApp{
     ofxPlaylist controlPlaylist;
     ofxPlaylist animPlaylist;
     ofxPlaylist connectionPlaylist;
+    ofxPlaylist connectionKeepAlivePlaylist;
     float fadeInTime;
     float fadeVariationTime;
     int discoLevel; // NEW* used to change the speed of the disco animation
@@ -183,7 +197,9 @@ public:
     bool interactionAllowed();
     void addLogItem(string datetime, string animation, string serverresponse, float frequency);
 
+    #ifdef __arm__
     ws2811_t ledstring;
+    #endif
     int ledBrightness;
     int ledCount;
 

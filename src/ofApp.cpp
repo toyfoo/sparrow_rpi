@@ -1,5 +1,5 @@
 /// sparrows
-/// version 1.0 - 20 march 2016
+/// version 1.1 - 7 july 2016
 /// by thomas laureyssens t@toyfoo.com
 
 
@@ -8,7 +8,6 @@
 void ofApp::setup()
 {
     // for debugging
-    load_ws281xlib = true; //when false, it's not required to run this using sudo
     //ofSetLogLevel(OF_LOG_VERBOSE);
 
     //sparrow default settings
@@ -28,6 +27,7 @@ void ofApp::setup()
     msecsPerWhistleDuration = 150;
     serverTimeOffHack = 0; // the hours the server is off
     discoChance = 3;  // percentage chance there is discolight (after a minimum of 15 whistles)
+    serverConnectionRetries = 0;
 
     // animation settings
     fadeOutTime = 1000.f;
@@ -227,13 +227,6 @@ void ofApp::setup()
         logXML.setValue("//unsent", ofToString(whistlesToSend));
     } else {
         whistlesToSend	= logXML.getValue<int>("//unsent");
-
-        // starting the code using .bashprofile loads the code faster than the system can join a wifi network.
-        // this might block this application when starting up and no network connection is available
-
-        //if (whistlesToSend > 0) {
-            //sendMessageToServer("whistle_fromFailedConnection");
-        //}
     }
 
     if(!logXML.exists("//log")) {
@@ -241,19 +234,16 @@ void ofApp::setup()
     }
     logXML.save("log.xml");
 
-    ofLogToFile("ofLogFile.txt", true);
-
-    // starting the code using .bashprofile loads the code faster than the system can join a wifi network.
-    // this might block this application when starting up and no network connection is available
-    //sendMessageToServer("onStartup");
+    //ofLogToFile("ofLogFile.txt", true);
 
     seedRandomPixelOrder(); //first seed of the randompixelorder
 
     // setup ws281x
+    #ifdef __arm__
     if (load_ws281xlib){
 		const rpi_hw_t *piVersion = rpi_hw_detect();
 		ledstring = {
-		/*nullptr*/0,
+		0,
 		piVersion,
 		TARGET_FREQ,
 		DMA,
@@ -268,28 +258,41 @@ void ofApp::setup()
 		   ofLogNotice("ws2811_init() success");
 		  }
     }
+    #endif
 
     // setup WHISTLEDETECTOR
+	#if loadSound
     setupDetector();
     setupSequenceDetector();
+    #endif
 
 	// initiate eye/beak animation
     animateBeakAndEyeAmbientAnim();
 
-    //first message to server to test connection
-    sendMessageToServer("onStartup");
 
+    // starting the code using .bashprofile loads the code faster than the system can join a wifi network.
+    // this might block this application when starting up and no network connection is available
+    // so let's add a pause
+    
+    using namespace Playlist;
+    connectionKeepAlivePlaylist.addKeyFrame(Action::pause(5000.f));
+    connectionKeepAlivePlaylist.addKeyFrame(Action::event(this, "keepAlive"));
+
+    if (whistlesToSend > 0) {
+        connectionKeepAlivePlaylist.addKeyFrame(Action::pause(1000.f));
+        connectionKeepAlivePlaylist.addKeyFrame(Action::event(this, "whistle_fromFailedConnection"));
+    }
 }
 
 void ofApp::update()
 {
-
-
-
     controlPlaylist.update();
     animPlaylist.update();
     connectionPlaylist.update();
+    connectionKeepAlivePlaylist.update();
 
+
+	#if loadSound
     // WHISTLE DETECTOR CODE
 
     //*
@@ -350,8 +353,7 @@ void ofApp::update()
 
                     ofLog() << "transition.isFromFinal() - saving the logfile";
                     logXML.save("log.xml"); // we save this here not to overload the system when the file gets too big
-                    settingsXML.save("sparrowsSettings.xml");
-                    //ofLog() << "logfile saved";
+                    ofLog() << "logfile saved";
 
 				}
 				// Here we go to initial state from non-final state, i.e. we do not reach 100%
@@ -374,6 +376,9 @@ void ofApp::update()
                     pixels[maintenancePixel]->addBlink(1, eyeWhistleUncertain); // white blink if uncertain -- similar to filling up
                     animateFillPercentage(ofColor::white, transition.certaintyPercent()/100.f);
                 }
+                else {
+                	pixels[maintenancePixel]->addBlink(2, profileColor); // whistling outside the allowed time
+                }
 
             }
         }
@@ -387,7 +392,7 @@ void ofApp::update()
 
             if (interactionAllowed()) {
 
-                lastWhistleFrequency = whistle.frequency(); // log it here?
+                //lastWhistleFrequency = whistle.frequency(); // log it here?
                 //cout << "freq: " << lastWhistleFrequency << endl;
 
                 pixels[eyePixel]->addBlink(2, eyeWhistleDetected);
@@ -398,9 +403,9 @@ void ofApp::update()
                         logXML.setValue("//unsent", ofToString(whistlesToSend));
                         logXML.save("log.xml");
                     }
-                    addLogItem(ofGetTimestampString("%Y-%n-%eT%H:%M:%S:%i%z"), ofToString(whistleState), "http-1", whistle.frequency());
+                    //addLogItem(ofGetTimestampString("%Y-%n-%eT%H:%M:%S:%i%z"), ofToString(whistleState), "http-1", whistle.frequency());
                 } else if (noActiveCampaign) {
-                    addLogItem(ofGetTimestampString("%Y-%n-%eT%H:%M:%S:%i%z"), ofToString(whistleState), "461", whistle.frequency());
+                    //addLogItem(ofGetTimestampString("%Y-%n-%eT%H:%M:%S:%i%z"), ofToString(whistleState), "461", whistle.frequency());
                     // TODO add the out of campaign possibility
 
                     sendMessageToServer("whistle"); // still send a whistle, because we might be in a new campaign now
@@ -408,7 +413,7 @@ void ofApp::update()
                 } else { // in a campaign, and no connection error
                     pixels[maintenancePixel]->addBlink(1, ofColor::white);
                     sendMessageToServer("whistle");
-                    addLogItem(ofGetTimestampString("%Y-%n-%eT%H:%M:%S:%i%z"), ofToString(whistleState), "200", whistle.frequency());
+                    //addLogItem(ofGetTimestampString("%Y-%n-%eT%H:%M:%S:%i%z"), ofToString(whistleState), "200", whistle.frequency());
                 }
 
 
@@ -430,7 +435,7 @@ void ofApp::update()
                     }
                 }
 
-                ofLog() << "state: " << whistleState;
+                //ofLog() << "state: " << whistleState;
 
                 switch (whistleState) {
                     case 1: // animation of whistle states below 100% certainty.
@@ -465,6 +470,7 @@ void ofApp::update()
             }
 		}
 	}
+	#endif
 
      //*/
 
@@ -474,13 +480,7 @@ void ofApp::update()
 //--------------------------------------------------------------
 void ofApp::draw(){
 
-    ofBackground(ofColor::gray);
-
-
-    //gui.draw();
-
-
-
+	#ifdef __arm__
     if (load_ws281xlib) {
         for (int i = 0; i < ledCount; i++){
             //ledstring.channel[0].leds[i] = createRGB(200,155,255);
@@ -488,47 +488,28 @@ void ofApp::draw(){
         }
         ws2811_render(&ledstring);
     }
+	#endif
+	
+    ofBackground(ofColor::lightGray);
+	//gui.draw();
+	ofSetColor(0);
 
-
-
-        ofSetColor(0);
-
-        std::stringstream ss;
-
-        ss << "Sparrow version 1.0 " << std::endl;
-        //ss << "FPS: " << ofGetFrameRate() << std::endl;
-        ss << "State: " << whistleState << std::endl;
-        //ss << "discoLevel: " << discoLevel << std::endl;
-        ss << "System time: " << ofGetHours() << ":" << ofGetMinutes() << std::endl;
-        ss << "System time is within allowed time: " << (ofGetHours() > onHour && ofGetHours() <= offHour) << std::endl;
-        ss << "Time restriction enabled: " << limitHours << std::endl;
-		ss << "Server: " << serverState << std::endl;
-
-        ofDrawBitmapString(ss.str(), ofVec2f(3, 90));
-
+	std::stringstream ss;
+	ss << "Sparrow v1.1 " << std::endl;
+	//ss << "Whistle state: " << whistleState << std::endl;
+    ss << "Time: \t" << ofGetHours() << ":" << ofGetMinutes() << ":" << ofGetSeconds() << std::endl;;
+    if (interactionAllowed()) {ss << "\tSystem time is within the allowed time." << std::endl;}
+    else {ss << "\tSystem time outside the allowed time." << std::endl;}
+    if (limitHours) {ss << "\tTime restriction is enabled: whistle within allowed times." << std::endl;}
+    else {ss << "\tTime restriction disabled: whistle anytime." << std::endl;}
+    if (connectionAlive) {ss << "Server:\tUp. This is good. " << std::endl;}
+    else {ss << "Server:\tDown. This it not good." << serverState << std::endl;}
+    ss << "\t" << serverState << std::endl;
+	ss << "\t" << serverResponseRaw << std::endl;
+	ofDrawBitmapString(ss.str(), ofVec2f(3, 90));
 }
 
 
-//tween(duration, TweenTarget, targetValue, BezierTween, startValue, delay_duration);
-//tween type
-//      TWEEN_BACK:
-//      TWEEN_BOUNCE:
-//      TWEEN_CIRC:
-//      TWEEN_CUBIC:
-//      TWEEN_ELASTIC:
-//      TWEEN_EXPO:
-//      TWEEN_LIN:
-//      TWEEN_QUAD:
-//      TWEEN_QUART:
-//      TWEEN_QUINT:
-//      TWEEN_SIN:
-
-//      //tween transitions
-//      TWEEN_PAUSE
-//      TWEEN_EASE_IN
-//      TWEEN_EASE_IN_OUT
-//      TWEEN_EASE_OUT
-//eyePlaylist.addToKeyFrame(	Action::tween(200.f, &rectPos.y, targetPosition.y));
 
 
 //--------------------------------------------------------------
@@ -882,33 +863,50 @@ void ofApp::onKeyframe(ofxPlaylistEventArgs& args){
 
 
     if (args.message == "whistleState 0") {
-        ofLogNotice("onKeyFrame main playlist  | whistleState is now 0");
+        //ofLogNotice("onKeyFrame main playlist  | whistleState is now 0");
         whistleState = 0;
     }
 
     if (args.message == "send_whistle_delayed") {
-        ofLogNotice("sendMessageToServer - delayed");
+        //ofLogNotice("sendMessageToServer - delayed");
         sendMessageToServer("whistle_delayed");
     }
 
     if (args.message == "animateBeakAndEyeAmbientAnim") {
-        ofLogNotice("animateBeakAndEyeAmbientAnim");
+        //ofLogNotice("animateBeakAndEyeAmbientAnim");
         animateBeakAndEyeAmbientAnim();
     }
 
     if (args.message == "retryWebserverConnection") {
-        ofLogNotice("retryWebserverConnection");
-
+        //ofLogNotice("retryWebserverConnection");
+    	if (whistlesToSend > 0) {
+            sendMessageToServer("whistle_fromFailedConnection");
+        }
+    }
+    
+    if (args.message == "whistle_fromFailedConnection") {
         if (whistlesToSend > 0) {
             sendMessageToServer("whistle_fromFailedConnection");
         }
     }
-
+    
+    
+/*
     if (args.message == "retryInternetConnection") {
         ofLogNotice("retryInternetConnection");
-
+        
+        ofRemoveAllURLRequests();
         ofLoadURLAsync("http://google.com/robots.txt", "connectionTest");
     }
+ */
+    
+    if (args.message == "keepAlive") {
+        //ofLogNotice("keepAlive");
+        sendMessageToServer("keepAlive");
+        connectionKeepAlivePlaylist.clear();
+        connectionKeepAlivePlaylist.addKeyFrame(Action::pause(30000.f));
+        connectionKeepAlivePlaylist.addKeyFrame(Action::event(this, "keepAlive"));
+    }	
 }
 
 // communication functions
@@ -919,15 +917,16 @@ void ofApp::onKeyframe(ofxPlaylistEventArgs& args){
 void ofApp::sendMessageToServer(string type){
 
     //return;
+    
+    //http://www.whistle.city/activityapi?objectId=6C3aCZoYJGA7yA6oc&activityType=whistle&gameType=1
+    //http://www.whistle.city/activityapi?objectId=6C3aCZoYJGA7yA6oc&activityType=ping&gameType=1
 
 
-    ofLog() << "send servermessage " + type + " " + ofGetTimestampString("%Y-%n-%e T%H:%M:%S");
+    //ofLog() << "send servermessage " + type + " " + ofGetTimestampString("%Y-%n-%e T%H:%M:%S");
 
     if (type == "whistle") {
-        whistlesToSend++;
+        whistlesToSend++; 
         logXML.setValue("//unsent", ofToString(whistlesToSend));
-
-
         if (!isLoading) {
             freshMessage = true;
             //cout << "whistle: http://whistle.city/activityapi?objectId=" + objectID + "&activityType=whistle&gameType=" + ofToString(gameType) << endl;
@@ -936,6 +935,7 @@ void ofApp::sendMessageToServer(string type){
             isLoading = true;
         }
     }
+    
     if (type == "whistle_fromFailedConnection") {
         if (!isLoading) {
             //cout << "whistle_fromFailedConnection: http://whistle.city/activityapi?objectId=" + objectID + "&activityType=whistle&gameType=" + ofToString(gameType) << endl;
@@ -944,6 +944,7 @@ void ofApp::sendMessageToServer(string type){
             isLoading = true;
         }
     }
+    
     if (type == "whistle_delayed") {
         if (!isLoading) {
             ofLoadURLAsync("http://www.whistle.city/activityapi?objectId=" + objectID + "&activityType=whistle&gameType=" + ofToString(gameType), "whistle_delayed");
@@ -951,96 +952,59 @@ void ofApp::sendMessageToServer(string type){
             isLoading = true;
         }
     }
+    
+    /*
     if (type == "onStartup") {
         if (!isLoading) {
-            ofLoadURLAsync("http://www.whistle.city/activityapi?objectId=" + objectID + "&activityType=ping&gameType=" + ofToString(gameType), "onStartup");
-            serverState = "Message sent " + type;
+            ofLoadURLAsync("http://www.whistle.city/statusapi?objectId=" + objectID, "onStartup");
             isLoading = true;
         }
     }
-}
-
-
-
-//--------------------------------------------------------------
-void ofApp::addLogItem(string datetime, string animation, string serverresponse, float frequency){
-
-    ofXml logAddition;
-
-    logAddition.addChild("w");
-    logAddition.setTo("w");
-
-    logAddition.addValue("dt", datetime); // ISO8601_FORMAT
-    logAddition.addValue("f", frequency); // whistle frequency
-    //logAddition.addValue("t", gameType);
-    //logAddition.addValue("ID", objectID);
-    logAddition.addValue("a", animation);
-    logAddition.addValue("s", serverresponse);
-
-    if(!logXML.exists("//log")) {
-        logXML.addChild("log");
+     */
+    
+    if (type == "keepAlive") {
+        if (!isLoading) {
+            ofLoadURLAsync("http://www.whistle.city/statusapi?objectId=" + objectID, "keepAlive");
+            isLoading = true;
+        }
     }
-    //cout << "addLog 1: " << logXML.getName() << endl;
-    logXML.setTo("//log");
-    logXML.addXml(logAddition);
-    //cout << "addLog 2: " << logXML.getName() << endl;
-    logXML.setToParent();
-    //cout << "addLog 3: " << logXML.getName() << endl;
-
-
-    // placing the save in the whistle update loop to occur after whistling stops, so that we dont' hog the system saving the logfile all too often.
-    //logXML.save("log.xml");
+    
 }
-
 
 //--------------------------------------------------------------
 void ofApp::urlResponse(ofHttpResponse & response){
 
     using namespace Playlist;
 
+	serverResponseRaw = response.request.name + " – " + ofToString(response.status) + " – " + ofGetTimestampString("%H:%M:%S");
+    //ofLog() << "receive " + response.request.name + " " + ofGetTimestampString("%Y-%n-%e T%H:%M:%S");
 
-    if(response.request.name == "connectionTestFirst"){ // just pinged google to see if the internet connection works
+    
+    if(response.request.name == "connectionTest"){ // subsequent connection tests
 
-
-            if (response.status == 200) { // google works
-            	serverState = "BAD: Google works, www.whistle.city is down";
-                webserverDown = true; // the sparrows webserver
-                pixels[maintenancePixel] -> clearPlaylist();
-                pixels[maintenancePixel] -> addBlinkLoop(status400webserver, 100.f, 500.f, 10.f, 200.f);
-
-                connectionPlaylist.addKeyFrame(Action::pause(20000.f));
-                connectionPlaylist.addKeyFrame(Action::event(this, "retryWebserverConnection"));
-
-                //todo: send email to sparrows admin
-            }
-
-            else { // internet connection is down
-
-				serverState = "BAD: No internet connection";
-                ofRemoveAllURLRequests();
-
-                pixels[maintenancePixel] -> clearPlaylist();
-                pixels[maintenancePixel] -> addBlinkLoop(status400, 100.f, 500.f, 10.f, 200.f);
-
-                connectionDownTime = ofGetElapsedTimeMillis();
-
-
-                // try again
-                connectionPlaylist.addKeyFrame(Action::pause(20000.f));
-                connectionPlaylist.addKeyFrame(Action::event(this, "retryInternetConnection"));
-            }
-
-    } else if(response.request.name == "connectionTest"){ // subsequent connection tests
-
-
-            if (response.status == 200) { // great, google works, so connection is back on
-            	serverState = "BAD: Google works, www.whistle.city is down";
-                connectionPlaylist.addKeyFrame(Action::pause(20000.f));
+            if (response.status == 200 || response.status == 301) { // great, google works, so connection is back on
+            	serverState = "Google works. Checking whistle.city. Retry: " + ofToString(serverConnectionRetries);
+            	
+            	connectionPlaylist.clear();
+                connectionPlaylist.addKeyFrame(Action::pause(5000.f));
                 connectionPlaylist.addKeyFrame(Action::event(this, "retryWebserverConnection"));
             }
-
             else { // google still doesn't work
-				serverState = "BAD: No internet connection";
+				serverState = "BAD: No internet connection. Code: " + ofToString(response.status) + " Retry: " + ofToString(serverConnectionRetries);
+                serverConnectionRetries++;
+				
+				pixels[maintenancePixel] -> clearPlaylist();
+                pixels[maintenancePixel] -> setColor(status400severe);
+                
+                connectionPlaylist.clear();
+                connectionPlaylist.addKeyFrame(Action::pause(5000.f));
+                connectionPlaylist.addKeyFrame(Action::event(this, "retryInternetConnection"));
+                
+                
+                
+                //connectionDownTime = ofGetElapsedTimeMillis();
+				
+				/*
                 unsigned long long currentTime = ofGetElapsedTimeMillis();
                 if (currentTime - connectionDownTime > 3 * 86400000) { // 3 days
                     hasSevereConnectionError = true;
@@ -1064,18 +1028,21 @@ void ofApp::urlResponse(ofHttpResponse & response){
                         pixels[maintenancePixel] -> clearPlaylist();
                         pixels[maintenancePixel] -> addBlinkLoop(status400severe, 100.f, 500.f, 10.f, 200.f); // normal blink
                 }
+                */
 
-                // try again
-                connectionPlaylist.addKeyFrame(Action::pause(20000.f));
-                connectionPlaylist.addKeyFrame(Action::event(this, "retryInternetConnection"));
+                
             }
 
 
     }
+    
+    
     else if (response.status == 200) { // HTTP response of all other (whistle & delayed whistle) connections
 
 		serverState = "OK: Response from www.whistle.city";
         isLoading = false;
+        connectionAlive = true;
+        serverConnectionRetries = 0;
 
         if (hasConnectionError) {
             hasConnectionError = false;
@@ -1089,12 +1056,15 @@ void ofApp::urlResponse(ofHttpResponse & response){
 
         serverResponseXML.loadFromBuffer(response.data.getText());
 
-        cout << serverResponseXML.toString() << endl;
+        //cout << serverResponseXML.toString() << endl;
 
-        ofLog() << "http response " << response.status << " " << response.error << " " << response.request.name << "ServerMessage: " << serverResponseXML.getValue("//status") << " time: " << ofGetTimestampString("%Y-%n-%e T%H:%M:%S");
+        ofLog() << "http: " << response.request.name << " " << response.status << " " << response.error << " Server: " << serverResponseXML.getValue("//status") << " time: " << ofGetTimestampString("%H:%M:%S");
+        
+        //ofGetTimestampString("%Y-%n-%e T%H:%M:%S")
 
-        if(serverResponseXML.exists("//profileColor")) {
+        if(serverResponseXML.exists("//status")) {
 
+			/*
             if (serverResponseXML.exists("//onHour") && serverResponseXML.exists("//offHour") && serverResponseXML.getValue("//onHour") != "" && serverResponseXML.getValue("//offHour") != "") {
                 onHour = serverResponseXML.getValue<int>("//onHour");
                 offHour = serverResponseXML.getValue<int>("//offHour");
@@ -1106,11 +1076,16 @@ void ofApp::urlResponse(ofHttpResponse & response){
                 gameType = serverResponseXML.getValue<int>("//gameType");
                 settingsXML.setValue("//gameType", serverResponseXML.getValue("//gameType"));
             }
+            */
+            
             if (serverResponseXML.exists("//profileColor") && serverResponseXML.getValue("//profileColor") != "") {
-                settingsXML.setValue("//profileColor", serverResponseXML.getValue("//profileColor"));
-                string bodycolorstring = serverResponseXML.getValue("//profileColor");
-                bodycolorstring = bodycolorstring.replace(0, 1, "0x");
-                profileColor = ofColor::fromHex(ofHexToInt(bodycolorstring));
+            	if (settingsXML.getValue("//profileColor") != serverResponseXML.getValue("//profileColor")) {
+                	settingsXML.setValue("//profileColor", serverResponseXML.getValue("//profileColor"));
+                	string bodycolorstring = serverResponseXML.getValue("//profileColor");
+                	bodycolorstring = bodycolorstring.replace(0, 1, "0x");
+                	profileColor = ofColor::fromHex(ofHexToInt(bodycolorstring));
+                    settingsXML.save("sparrowsSettings.xml");
+                }
             }
 
             /*
@@ -1154,10 +1129,12 @@ void ofApp::urlResponse(ofHttpResponse & response){
 
                 // status OK
                 if (serverResponseXML.getValue("//status") == "200") { //whistle was correctly received
-				serverState = "OK: Whistle.city received whistle";
+				serverState = "OK: Whistle.city works";
+				
                 noActiveCampaign = false;
 
                     if(response.request.name == "whistle"){
+                        serverState = "OK: Whistle.city received whistle";
                         whistlesToSend--;
                         logXML.setValue("//unsent", ofToString(whistlesToSend));
 
@@ -1170,8 +1147,9 @@ void ofApp::urlResponse(ofHttpResponse & response){
                         }
 
                         if (whistlesToSend > 0) { // if there were unsent wistles, send them now. this is delayed, since the website interface flashes with intensive use
-                            serverState = "OK: Sending unsent whistles";
-                            connectionPlaylist.addKeyFrame(Action::pause(1500.f));
+                            serverState = "OK: Whistle.city received whistle. Sending unsent whistles";
+                            connectionPlaylist.clear();
+                            connectionPlaylist.addKeyFrame(Action::pause(1000.f));
                             connectionPlaylist.addKeyFrame(Action::event(this, "send_whistle_delayed"));
                         }
                     }
@@ -1180,7 +1158,8 @@ void ofApp::urlResponse(ofHttpResponse & response){
                         logXML.setValue("//unsent", ofToString(whistlesToSend));
 
                         if (whistlesToSend > 0) {
-                        	serverState = "OK: Sending unsent whistles";
+                        	serverState = "OK: Whistle.city received whistle. Sending unsent whistles";
+                        	connectionPlaylist.clear();
                             connectionPlaylist.addKeyFrame(Action::pause(1000.f));
                             connectionPlaylist.addKeyFrame(Action::event(this, "send_whistle_delayed"));
                         }
@@ -1221,43 +1200,34 @@ void ofApp::urlResponse(ofHttpResponse & response){
         }
 
     }
-    else {
+    else if(response.status == -1) {
+        ofRemoveAllURLRequests();  //when the connection is down, urlResponse is triggered multiple times a second with code -1
+        //ofLog() << "connection error. time: " << ofGetTimestampString("%Y-%n-%e T%H:%M:%S");
+        //ofGetTimestampString("%Y-%n-%e T%H:%M:%S:%i%z")
+        isLoading = false;
 
         if (!hasConnectionError) { // in case of connection error, run this only once
             serverState = "BAD: There is a connection error. Checking Google.";
-            //cout << "one time connection error run" << endl;
-            ofLog() << "connection error. time: " << ofGetTimestampString("%Y-%n-%e T%H:%M:%S"); //ofGetTimestampString("%Y-%n-%e T%H:%M:%S:%i%z")
+            
             hasConnectionError = true;
-
-            //figuring out if it's our webserver or the internet connection
-            ofLoadURLAsync("http://google.com/robots.txt", "connectionTestFirst");
-
-        } else { // connection error is already registered
-			serverState = "BAD: There is still a connection error. Checking Google.";
+            connectionAlive = false;
+            
             connectionPlaylist.clear(); // if there is a connection error, try again in 30 seconds
-            connectionPlaylist.addKeyFrame(Action::pause(20000.f));
+            connectionPlaylist.addKeyFrame(Action::pause(2000.f));
             connectionPlaylist.addKeyFrame(Action::event(this, "connectionTest"));
+            
+            pixels[maintenancePixel] -> clearPlaylist();
+            pixels[maintenancePixel] -> setColor(ofColor::red);
         }
+    }
+    else {
+            ofLog() << "response.status unimplemented. Code: " << response.status;
+    }
 
-
-
-
-        if(response.status != -1) isLoading = false;
-
-        if(response.status == -1) {
-            ofRemoveAllURLRequests();
-            isLoading = false;
-
-//            connectionPlaylist.clear(); // if there is a connection error, try again in 30 seconds
-//            connectionPlaylist.addKeyFrame(Action::pause(30000.f));
-//            connectionPlaylist.addKeyFrame(Action::event(this, "send_whistle_delayed"));
-        }
-
-        if (response.request.name == "whistle" && freshMessage) {
-            freshMessage = false;
-            pixels[beakPixel] -> addBlink(1, status400);
-        }
-	}
+    if (response.request.name == "whistle" && freshMessage) {
+        freshMessage = false;
+        pixels[beakPixel] -> addBlink(1, status400);
+    }
 }
 
 
@@ -1336,7 +1306,8 @@ void ofApp::keyPressed(int key){
     if(key == 'w') {
 		onWhistle(1000, 1);
 	}
-	    if(key == 'c') {
+	
+	if(key == 's') {
 		sendMessageToServer("whistle");
 	}
     //*/
@@ -1349,6 +1320,38 @@ void ofApp::exit()
   whistleButton.removeListener(this,&ofApp::whistleButtonPressed);
   ofUnregisterURLNotification(this);
   ofxKeyframeAnimUnRegisterEvents(this);
+}
+
+//--------------------------------------------------------------
+void ofApp::addLogItem(string datetime, string animation, string serverresponse, float frequency){
+
+	return;
+
+    ofXml logAddition;
+
+    logAddition.addChild("w");
+    logAddition.setTo("w");
+
+    logAddition.addValue("dt", datetime); // ISO8601_FORMAT
+    logAddition.addValue("f", frequency); // whistle frequency
+    //logAddition.addValue("t", gameType);
+    //logAddition.addValue("ID", objectID);
+    logAddition.addValue("a", animation);
+    logAddition.addValue("s", serverresponse);
+
+    if(!logXML.exists("//log")) {
+        logXML.addChild("log");
+    }
+    //cout << "addLog 1: " << logXML.getName() << endl;
+    logXML.setTo("//log");
+    logXML.addXml(logAddition);
+    //cout << "addLog 2: " << logXML.getName() << endl;
+    logXML.setToParent();
+    //cout << "addLog 3: " << logXML.getName() << endl;
+
+
+    // placing the save in the whistle update loop to occur after whistling stops, so that we dont' hog the system saving the logfile all too often.
+    //logXML.save("log.xml");
 }
 
 
@@ -1391,6 +1394,7 @@ void ofApp::exit()
 
 void ofApp::setupDetector()
 {
+    #if soundLoad
     // Set detector parameters
     // Use default parameters
      detector.setHzPerWindow(130);
@@ -1404,16 +1408,19 @@ void ofApp::setupDetector()
     // detected whistles in internal buffer. ofxIntegratedWhistleDetector::getNextWhistle() must be
     // used to retrieve available whistles in FIFO order from the buffer
     detector.open();
+    #endif
 }
 
 void ofApp::setupSequenceDetector()
 {
+    #if soundLoad
     // Set sequence detector parameters
     /* Use default parameters */
     sequenceDetector.setWhistleCountInSequence(4);
     sequenceDetector.setMsecsPerStateGap(1000);
     sequenceDetector.setMsecsPerStateTimeout(10 * 1000);
     sequenceDetector.setMsecsPerFinalStateTimeout(timeoutTimeWhistles);
+    #endif
 }
 
 /*
@@ -1462,3 +1469,26 @@ string ofApp::getTransitionsAsString() const
  */
 
 //*/
+
+
+//tween(duration, TweenTarget, targetValue, BezierTween, startValue, delay_duration);
+//tween type
+//      TWEEN_BACK:
+//      TWEEN_BOUNCE:
+//      TWEEN_CIRC:
+//      TWEEN_CUBIC:
+//      TWEEN_ELASTIC:
+//      TWEEN_EXPO:
+//      TWEEN_LIN:
+//      TWEEN_QUAD:
+//      TWEEN_QUART:
+//      TWEEN_QUINT:
+//      TWEEN_SIN:
+
+//      //tween transitions
+//      TWEEN_PAUSE
+//      TWEEN_EASE_IN
+//      TWEEN_EASE_IN_OUT
+//      TWEEN_EASE_OUT
+//eyePlaylist.addToKeyFrame(	Action::tween(200.f, &rectPos.y, targetPosition.y));
+
