@@ -275,13 +275,14 @@ void ofApp::setup()
     // so let's add a pause
     
     using namespace Playlist;
-    connectionKeepAlivePlaylist.addKeyFrame(Action::pause(5000.f));
-    connectionKeepAlivePlaylist.addKeyFrame(Action::event(this, "keepAlive"));
 
     if (whistlesToSend > 0) {
         connectionKeepAlivePlaylist.addKeyFrame(Action::pause(1000.f));
         connectionKeepAlivePlaylist.addKeyFrame(Action::event(this, "whistle_fromFailedConnection"));
     }
+    
+    connectionKeepAlivePlaylist.addKeyFrame(Action::pause(5000.f));
+    connectionKeepAlivePlaylist.addKeyFrame(Action::event(this, "keepAlive"));
 }
 
 void ofApp::update()
@@ -495,18 +496,21 @@ void ofApp::draw(){
 	ofSetColor(0);
 
 	std::stringstream ss;
-	ss << "Sparrow v1.1 " << std::endl;
-	//ss << "Whistle state: " << whistleState << std::endl;
-    ss << "Time: \t" << ofGetHours() << ":" << ofGetMinutes() << ":" << ofGetSeconds() << std::endl;;
+	ss << "Sparrow\tv1.1 " << std::endl;
+    ss << "\tWhistles to send to server: " << whistlesToSend << std::endl;
+    ss << "\tInteraction state: " << whistleState << std::endl;
+    ss << std::endl;
+    ss << "Time\t" << ofGetHours() << ":" << ofGetMinutes() << ":" << ofGetSeconds() << std::endl;
     if (interactionAllowed()) {ss << "\tSystem time is within the allowed time." << std::endl;}
     else {ss << "\tSystem time outside the allowed time." << std::endl;}
     if (limitHours) {ss << "\tTime restriction is enabled: whistle within allowed times." << std::endl;}
     else {ss << "\tTime restriction disabled: whistle anytime." << std::endl;}
-    if (connectionAlive) {ss << "Server:\tUp. This is good. " << std::endl;}
-    else {ss << "Server:\tDown. This it not good." << serverState << std::endl;}
+    ss << std::endl;
+    if (connectionAlive) {ss << "Server\tUp. This is good. " << std::endl;}
+    else {ss << "Server\tDown. This it not good." << serverState << std::endl;}
     ss << "\t" << serverState << std::endl;
 	ss << "\t" << serverResponseRaw << std::endl;
-	ofDrawBitmapString(ss.str(), ofVec2f(3, 90));
+	ofDrawBitmapString(ss.str(), ofVec2f(170, 15));
 }
 
 
@@ -881,6 +885,8 @@ void ofApp::onKeyframe(ofxPlaylistEventArgs& args){
         //ofLogNotice("retryWebserverConnection");
     	if (whistlesToSend > 0) {
             sendMessageToServer("whistle_fromFailedConnection");
+        } else {
+            sendMessageToServer("keepAlive");
         }
     }
     
@@ -889,16 +895,6 @@ void ofApp::onKeyframe(ofxPlaylistEventArgs& args){
             sendMessageToServer("whistle_fromFailedConnection");
         }
     }
-    
-    
-/*
-    if (args.message == "retryInternetConnection") {
-        ofLogNotice("retryInternetConnection");
-        
-        ofRemoveAllURLRequests();
-        ofLoadURLAsync("http://google.com/robots.txt", "connectionTest");
-    }
- */
     
     if (args.message == "keepAlive") {
         //ofLogNotice("keepAlive");
@@ -939,7 +935,7 @@ void ofApp::sendMessageToServer(string type){
     if (type == "whistle_fromFailedConnection") {
         if (!isLoading) {
             //cout << "whistle_fromFailedConnection: http://whistle.city/activityapi?objectId=" + objectID + "&activityType=whistle&gameType=" + ofToString(gameType) << endl;
-            ofLoadURLAsync("http://www.whistle.city/activityapi?objectId=" + objectID + "&activityType=whistle&gameType=" + ofToString(gameType), "whistle_fromFailedConnection");
+            ofLoadURLAsync("http://www.whistle.city/activityapi?objectId=" + objectID + "&activityType=whistle&gameType=" + ofToString(gameType), "whistle_delayed");
             serverState = "Message sent " + type;
             isLoading = true;
         }
@@ -976,67 +972,22 @@ void ofApp::urlResponse(ofHttpResponse & response){
 
     using namespace Playlist;
 
-	serverResponseRaw = response.request.name + " – " + ofToString(response.status) + " – " + ofGetTimestampString("%H:%M:%S");
-    //ofLog() << "receive " + response.request.name + " " + ofGetTimestampString("%Y-%n-%e T%H:%M:%S");
-
+	serverResponseRaw = "Raw: " + response.request.name + " – " + ofToString(response.status) + " – " + ofGetTimestampString("%H:%M:%S");
     
-    if(response.request.name == "connectionTest"){ // subsequent connection tests
+    if(response.request.name == "retryWebserverConnection"){ // subsequent connection tests
 
-            if (response.status == 200 || response.status == 301) { // great, google works, so connection is back on
-            	serverState = "Google works. Checking whistle.city. Retry: " + ofToString(serverConnectionRetries);
+            if (response.status != 200 || response.status != 301) { // great, google works, so connection is back on
+            	serverState = "Connection down? Checking www.whistle.city. Retry: " + ofToString(serverConnectionRetries);
+                serverConnectionRetries++;
             	
             	connectionPlaylist.clear();
                 connectionPlaylist.addKeyFrame(Action::pause(5000.f));
                 connectionPlaylist.addKeyFrame(Action::event(this, "retryWebserverConnection"));
-            }
-            else { // google still doesn't work
-				serverState = "BAD: No internet connection. Code: " + ofToString(response.status) + " Retry: " + ofToString(serverConnectionRetries);
-                serverConnectionRetries++;
-				
-				pixels[maintenancePixel] -> clearPlaylist();
+                
+                pixels[maintenancePixel] -> clearPlaylist();
                 pixels[maintenancePixel] -> setColor(status400severe);
-                
-                connectionPlaylist.clear();
-                connectionPlaylist.addKeyFrame(Action::pause(5000.f));
-                connectionPlaylist.addKeyFrame(Action::event(this, "retryInternetConnection"));
-                
-                
-                
-                //connectionDownTime = ofGetElapsedTimeMillis();
-				
-				/*
-                unsigned long long currentTime = ofGetElapsedTimeMillis();
-                if (currentTime - connectionDownTime > 3 * 86400000) { // 3 days
-                    hasSevereConnectionError = true;
-
-                    // indicator light red -- needs restart -- doesn't save anymore
-                    pixels[maintenancePixel] -> clearPlaylist();
-                    pixels[maintenancePixel] -> setColor(status400severe);
-
-                    if (whistlesToSend > 0) {
-                        whistlesToSend = 0;
-                        logXML.setValue("//unsent", ofToString(whistlesToSend));
-                        logXML.save("log.xml");
-                    }
-
-                } else if (currentTime - connectionDownTime > 2 * 86400000) {
-                    pixels[maintenancePixel] -> clearPlaylist();
-                    pixels[maintenancePixel] -> addBlinkLoop(status400severe, 50.f, 200.f, 10.f, 100.f); //blinking fast
-
-                } else if (currentTime - connectionDownTime > 86400000) { // 86400000 day of miliseconds
-
-                        pixels[maintenancePixel] -> clearPlaylist();
-                        pixels[maintenancePixel] -> addBlinkLoop(status400severe, 100.f, 500.f, 10.f, 200.f); // normal blink
-                }
-                */
-
-                
             }
-
-
     }
-    
-    
     else if (response.status == 200) { // HTTP response of all other (whistle & delayed whistle) connections
 
 		serverState = "OK: Response from www.whistle.city";
@@ -1056,11 +1007,7 @@ void ofApp::urlResponse(ofHttpResponse & response){
 
         serverResponseXML.loadFromBuffer(response.data.getText());
 
-        //cout << serverResponseXML.toString() << endl;
-
-        ofLog() << "http: " << response.request.name << " " << response.status << " " << response.error << " Server: " << serverResponseXML.getValue("//status") << " time: " << ofGetTimestampString("%H:%M:%S");
-        
-        //ofGetTimestampString("%Y-%n-%e T%H:%M:%S")
+        //ofLog() << "http: " << response.request.name << " " << response.status << " " << response.error << " Server: " << serverResponseXML.getValue("//status") << " time: " << ofGetTimestampString("%H:%M:%S"); //ofGetTimestampString("%Y-%n-%e T%H:%M:%S")
 
         if(serverResponseXML.exists("//status")) {
 
@@ -1129,12 +1076,12 @@ void ofApp::urlResponse(ofHttpResponse & response){
 
                 // status OK
                 if (serverResponseXML.getValue("//status") == "200") { //whistle was correctly received
-				serverState = "OK: Whistle.city works";
+				serverState = "OK: Whistle.city online";
 				
                 noActiveCampaign = false;
 
                     if(response.request.name == "whistle"){
-                        serverState = "OK: Whistle.city received whistle";
+                        serverState = "OK: whistle.city received whistle";
                         whistlesToSend--;
                         logXML.setValue("//unsent", ofToString(whistlesToSend));
 
@@ -1158,7 +1105,7 @@ void ofApp::urlResponse(ofHttpResponse & response){
                         logXML.setValue("//unsent", ofToString(whistlesToSend));
 
                         if (whistlesToSend > 0) {
-                        	serverState = "OK: Whistle.city received whistle. Sending unsent whistles";
+                        	serverState = "OK: whistle.city received whistle. Sending unsent whistles";
                         	connectionPlaylist.clear();
                             connectionPlaylist.addKeyFrame(Action::pause(1000.f));
                             connectionPlaylist.addKeyFrame(Action::event(this, "send_whistle_delayed"));
@@ -1185,14 +1132,11 @@ void ofApp::urlResponse(ofHttpResponse & response){
                         pixels[maintenancePixel] -> addBlink(1, status461);
                     }
                 }
-                else if ((serverResponseXML.getValue("//status") == "400" || serverResponseXML.getValue("//status") == "461") && response.request.name == "onStartup") { // status no active campaign
-                    serverState = "OK: Server connection works. Loaded settings.";
-                    ofLogNotice("Server connection works. Loaded settings.");
-                }
+                
                 else {
-                    serverState = "OK: Unimplemented server error. Correct SparrowID?";
+                    serverState = "CAUTION: Unimplemented server code. Correct SparrowID?";
                     ofLogError("Unimplemented server return status: " + serverResponseXML.getValue("//status") + " error: " + serverResponseXML.getValue("//error"));
-                    addLogItem(serverResponseXML.getValue("//serverTime"), ofToString(whistleState), serverResponseXML.getValue("//status"), 0.f); //logXML.save("log.xml");
+                    //addLogItem(serverResponseXML.getValue("//serverTime"), ofToString(whistleState), serverResponseXML.getValue("//status"), 0.f); //logXML.save("log.xml");
                     pixels[beakPixel] -> addBlink(2, status400);
                     pixels[maintenancePixel] -> addBlink(1, status400);
                 }
@@ -1206,7 +1150,7 @@ void ofApp::urlResponse(ofHttpResponse & response){
         //ofGetTimestampString("%Y-%n-%e T%H:%M:%S:%i%z")
         isLoading = false;
 
-        if (!hasConnectionError) { // in case of connection error, run this only once
+        //if (!hasConnectionError) { // in case of connection error, run this only once
             serverState = "BAD: There is a connection error. Checking Google.";
             
             hasConnectionError = true;
@@ -1218,7 +1162,7 @@ void ofApp::urlResponse(ofHttpResponse & response){
             
             pixels[maintenancePixel] -> clearPlaylist();
             pixels[maintenancePixel] -> setColor(ofColor::red);
-        }
+        //}
     }
     else {
             ofLog() << "response.status unimplemented. Code: " << response.status;

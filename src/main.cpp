@@ -13,7 +13,7 @@ int main( ){
 
 
 	//ofSetupOpenGL(1024,768,OF_WINDOW);
-    ofSetupOpenGL(550,200,OF_WINDOW);
+    ofSetupOpenGL(600,200,OF_WINDOW);
 
 	// this kicks off the running of my app
 	// can be OF_WINDOW or OF_FULLSCREEN
