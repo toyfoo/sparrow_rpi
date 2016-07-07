@@ -987,6 +987,13 @@ void ofApp::urlResponse(ofHttpResponse & response){
                 pixels[maintenancePixel] -> clearPlaylist();
                 pixels[maintenancePixel] -> setColor(status400severe);
             }
+            else if (response.status == 200) {
+                if (whistlesToSend > 0) {
+                    connectionPlaylist.clear();
+                    connectionPlaylist.addKeyFrame(Action::pause(1000.f));
+                    connectionPlaylist.addKeyFrame(Action::event(this, "send_whistle_delayed"));
+                }
+            }
     }
     else if (response.status == 200) { // HTTP response of all other (whistle & delayed whistle) connections
 
@@ -1135,7 +1142,7 @@ void ofApp::urlResponse(ofHttpResponse & response){
                 
                 else {
                     serverState = "CAUTION: Unimplemented server code. Correct SparrowID?";
-                    ofLogError("Unimplemented server return status: " + serverResponseXML.getValue("//status") + " error: " + serverResponseXML.getValue("//error"));
+                    //ofLogError("Unimplemented server return status: " + serverResponseXML.getValue("//status") + " error: " + serverResponseXML.getValue("//error"));
                     //addLogItem(serverResponseXML.getValue("//serverTime"), ofToString(whistleState), serverResponseXML.getValue("//status"), 0.f); //logXML.save("log.xml");
                     pixels[beakPixel] -> addBlink(2, status400);
                     pixels[maintenancePixel] -> addBlink(1, status400);
@@ -1154,23 +1161,21 @@ void ofApp::urlResponse(ofHttpResponse & response){
         //ofGetTimestampString("%Y-%n-%e T%H:%M:%S:%i%z")
         isLoading = false;
 
-        //if (!hasConnectionError) { // in case of connection error, run this only once
-            serverState = "BAD: There is a connection error.";
-            
-            hasConnectionError = true;
-            connectionAlive = false;
-            
-            connectionPlaylist.clear(); // if there is a connection error, try again in 30 seconds
-            connectionPlaylist.addKeyFrame(Action::pause(2000.f));
-            connectionPlaylist.addKeyFrame(Action::event(this, "connectionTest"));
-            
-            pixels[maintenancePixel] -> clearPlaylist();
-            pixels[maintenancePixel] -> setColor(ofColor::red);
-        //}
+        serverState = "BAD: There is a connection error.";
+        
+        hasConnectionError = true;
+        connectionAlive = false;
+        
+        connectionPlaylist.clear(); // if there is a connection error, try again in 30 seconds
+        connectionPlaylist.addKeyFrame(Action::pause(2000.f));
+        connectionPlaylist.addKeyFrame(Action::event(this, "connectionTest"));
+        
+        pixels[maintenancePixel] -> clearPlaylist();
+        pixels[maintenancePixel] -> setColor(ofColor::red);
     }
     
-    if(response.status == -1 || response.status == 302) {
-            ofLog() << "unimplemented response.status?. Code: " << response.status;
+    if(response.status != -1 || response.status != 302 || response.status != 200) {
+            ofLog() << "Unimplemented response.status? Code: " << response.status;
     }
 
     if (response.request.name == "whistle" && freshMessage) {
