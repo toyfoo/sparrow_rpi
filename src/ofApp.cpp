@@ -277,8 +277,8 @@ void ofApp::setup()
     using namespace Playlist;
 
     if (whistlesToSend > 0) {
-        connectionKeepAlivePlaylist.addKeyFrame(Action::pause(1000.f));
-        connectionKeepAlivePlaylist.addKeyFrame(Action::event(this, "whistle_fromFailedConnection"));
+        connectionPlaylist.addKeyFrame(Action::pause(1000.f));
+        connectionPlaylist.addKeyFrame(Action::event(this, "whistle_delayed"));
     }
     
     connectionKeepAlivePlaylist.addKeyFrame(Action::pause(5000.f));
@@ -871,11 +871,6 @@ void ofApp::onKeyframe(ofxPlaylistEventArgs& args){
         whistleState = 0;
     }
 
-    if (args.message == "send_whistle_delayed") {
-        //ofLogNotice("sendMessageToServer - delayed");
-        sendMessageToServer("whistle_delayed");
-    }
-
     if (args.message == "animateBeakAndEyeAmbientAnim") {
         //ofLogNotice("animateBeakAndEyeAmbientAnim");
         animateBeakAndEyeAmbientAnim();
@@ -884,15 +879,15 @@ void ofApp::onKeyframe(ofxPlaylistEventArgs& args){
     if (args.message == "retryWebserverConnection") {
         //ofLogNotice("retryWebserverConnection");
     	if (whistlesToSend > 0) {
-            sendMessageToServer("whistle_fromFailedConnection");
+            sendMessageToServer("whistle_delayed");
         } else {
             sendMessageToServer("keepAlive");
         }
     }
     
-    if (args.message == "whistle_fromFailedConnection") {
+    if (args.message == "whistle_delayed" || args.message == "send_whistle_delayed") {
         if (whistlesToSend > 0) {
-            sendMessageToServer("whistle_fromFailedConnection");
+            sendMessageToServer("whistle_delayed");
         }
     }
     
@@ -902,6 +897,7 @@ void ofApp::onKeyframe(ofxPlaylistEventArgs& args){
         connectionKeepAlivePlaylist.clear();
         connectionKeepAlivePlaylist.addKeyFrame(Action::pause(30000.f));
         connectionKeepAlivePlaylist.addKeyFrame(Action::event(this, "keepAlive"));
+        
     }	
 }
 
@@ -932,15 +928,6 @@ void ofApp::sendMessageToServer(string type){
         }
     }
     
-    if (type == "whistle_fromFailedConnection") {
-        if (!isLoading) {
-            //cout << "whistle_fromFailedConnection: http://whistle.city/activityapi?objectId=" + objectID + "&activityType=whistle&gameType=" + ofToString(gameType) << endl;
-            ofLoadURLAsync("http://www.whistle.city/activityapi?objectId=" + objectID + "&activityType=whistle&gameType=" + ofToString(gameType), "whistle_delayed");
-            serverState = "Message sent " + type;
-            isLoading = true;
-        }
-    }
-    
     if (type == "whistle_delayed") {
         if (!isLoading) {
             ofLoadURLAsync("http://www.whistle.city/activityapi?objectId=" + objectID + "&activityType=whistle&gameType=" + ofToString(gameType), "whistle_delayed");
@@ -948,15 +935,6 @@ void ofApp::sendMessageToServer(string type){
             isLoading = true;
         }
     }
-    
-    /*
-    if (type == "onStartup") {
-        if (!isLoading) {
-            ofLoadURLAsync("http://www.whistle.city/statusapi?objectId=" + objectID, "onStartup");
-            isLoading = true;
-        }
-    }
-     */
     
     if (type == "keepAlive") {
         if (!isLoading) {
@@ -1016,7 +994,7 @@ void ofApp::urlResponse(ofHttpResponse & response){
 
         //ofLog() << "http: " << response.request.name << " " << response.status << " " << response.error << " Server: " << serverResponseXML.getValue("//status") << " time: " << ofGetTimestampString("%H:%M:%S"); //ofGetTimestampString("%Y-%n-%e T%H:%M:%S")
 
-        if(serverResponseXML.exists("//status")) {
+        if(serverResponseXML.exists("//status") && serverResponseXML.getValue("//status") != "") {
 
 			/*
             if (serverResponseXML.exists("//onHour") && serverResponseXML.exists("//offHour") && serverResponseXML.getValue("//onHour") != "" && serverResponseXML.getValue("//offHour") != "") {
@@ -1042,111 +1020,75 @@ void ofApp::urlResponse(ofHttpResponse & response){
                 }
             }
 
-            /*
-            if (serverResponseXML.exists("//serverTime") && serverResponseXML.getValue("//serverTime") != "") { //ISO8601 - eg. 2014-08-21T12:29:51.652Z
-                Poco::DateTime max1;
-                try
-                {
-                    int tz = 0;
-                    Poco::DateTime serverTime;
-                    Poco::DateTimeParser::parse(Poco::DateTimeFormat::ISO8601_FORMAT, serverResponseXML.getValue("//serverTime"), serverTime, tz);
-                    //serverTime.makeLocal(tz);
-                    //serverTime.makeUTC(tz);
-                    //cout << "Server Hour (UTC) is " << serverTime.hour() << " computer hour is " << ofGetHours() << endl; // seems to be 2 hours off
-
-
-
-                    /*
-                    if ((serverTime.hour() + serverTimeOffHack) != ofGetHours()) {
-                        int minutesdiff = serverTime.minute() - ofGetMinutes();
-                        if ( minutesdiff > 10 || minutesdiff < -10) {
-                            timeIsOff = true;
-                            //cout << "setting time is off!" << endl;
-                        }
-                    } else {
-                        timeIsOff = false;
-                        //cout << "setting time is false!" << endl;
-                    }
-
-
-                }
-                catch (const Poco::SyntaxException& exc)
-                {
-                    ofLogError("ofApp::urlResponse()") << "Syntax exception: " << exc.displayText();
-                }
-
-            }
-            */
-            if (serverResponseXML.exists("//status") && serverResponseXML.getValue("//status") != "") {
-
-                //cout << "serverResponseXML.getValue(//status) " << serverResponseXML.getValue("//status") << endl;
-
-                // status OK
-                if (serverResponseXML.getValue("//status") == "200") { //whistle was correctly received
-				serverState = "OK: Whistle.city online";
-				
+            // status OK
+            if (serverResponseXML.getValue("//status") == "200") { //whistle was correctly received
+                serverState = "OK: Whistle.city online";
+                
                 noActiveCampaign = false;
 
-                    if(response.request.name == "whistle"){
-                        serverState = "OK: whistle.city received whistle";
-                        whistlesToSend--;
-                        logXML.setValue("//unsent", ofToString(whistlesToSend));
+                if(response.request.name == "whistle"){
+                    serverState = "OK: whistle.city received whistle";
+                    whistlesToSend--;
+                    logXML.setValue("//unsent", ofToString(whistlesToSend));
 
-                        //addLogItem(serverResponseXML.getValue("//serverTime"), ofToString(whistleState), "200"); // saves the log.xml file //logXML.save("log.xml");
+                    //addLogItem(serverResponseXML.getValue("//serverTime"), ofToString(whistleState), "200"); // saves the log.xml file //logXML.save("log.xml");
 
-                        if (freshMessage) { //no visual feedback after a connection failure
-                            freshMessage = false;
-                            pixels[beakPixel] -> addBlink(2, status200);
-                            pixels[maintenancePixel] -> addBlink(1, status200);
-                        }
-
-                        if (whistlesToSend > 0) { // if there were unsent wistles, send them now. this is delayed, since the website interface flashes with intensive use
-                            serverState = "OK: Whistle.city received whistle. Sending unsent whistles";
-                            connectionPlaylist.clear();
-                            connectionPlaylist.addKeyFrame(Action::pause(1000.f));
-                            connectionPlaylist.addKeyFrame(Action::event(this, "send_whistle_delayed"));
-                        }
-                    }
-                    else if(response.request.name == "whistle_delayed"){
-                        whistlesToSend--;
-                        logXML.setValue("//unsent", ofToString(whistlesToSend));
-
-                        if (whistlesToSend > 0) {
-                        	serverState = "OK: whistle.city received whistle. Sending unsent whistles";
-                        	connectionPlaylist.clear();
-                            connectionPlaylist.addKeyFrame(Action::pause(1000.f));
-                            connectionPlaylist.addKeyFrame(Action::event(this, "send_whistle_delayed"));
-                        }
-                        if (whistlesToSend == 0) {
-                        	serverState = "OK: Finished sending unsent whistles";
-                        }
+                    if (freshMessage) { //no visual feedback after a connection failure
+                        freshMessage = false;
+                        pixels[beakPixel] -> addBlink(2, status200);
+                        pixels[maintenancePixel] -> addBlink(1, status200);
                     }
 
-                }
-                else if (serverResponseXML.getValue("//status") == "461") { // status no active campaign
-
-                    noActiveCampaign = true;
-                    serverState = "OK: There is no active campaign";
-
-                    if (whistlesToSend > 0) { // unsent whistles from this and previous campain should be removed
-                        whistlesToSend = 0;
-                        logXML.setValue("//unsent", ofToString(whistlesToSend));
-                        logXML.save("log.xml");
-                    }
-
-                    if(response.request.name == "whistle"){
-                        pixels[beakPixel] -> addBlink(2, status461);
-                        pixels[maintenancePixel] -> addBlink(1, status461);
+                    if (whistlesToSend > 0) { // if there were unsent wistles, send them now. this is delayed, since the website interface flashes with intensive use
+                        serverState = "OK: Whistle.city received whistle. Sending unsent whistles";
+                        connectionPlaylist.clear();
+                        connectionPlaylist.addKeyFrame(Action::pause(1000.f));
+                        connectionPlaylist.addKeyFrame(Action::event(this, "send_whistle_delayed"));
                     }
                 }
-                
-                else {
-                    serverState = "CAUTION: Unimplemented server code. Correct SparrowID?";
-                    //ofLogError("Unimplemented server return status: " + serverResponseXML.getValue("//status") + " error: " + serverResponseXML.getValue("//error"));
-                    //addLogItem(serverResponseXML.getValue("//serverTime"), ofToString(whistleState), serverResponseXML.getValue("//status"), 0.f); //logXML.save("log.xml");
-                    pixels[beakPixel] -> addBlink(2, status400);
-                    pixels[maintenancePixel] -> addBlink(1, status400);
+                else if(response.request.name == "whistle_delayed"){
+                    whistlesToSend--;
+                    logXML.setValue("//unsent", ofToString(whistlesToSend));
+
+                    if (whistlesToSend > 0) {
+                        serverState = "OK: whistle.city received whistle. Sending more unsent whistles";
+                        connectionPlaylist.clear();
+                        connectionPlaylist.addKeyFrame(Action::pause(1000.f));
+                        connectionPlaylist.addKeyFrame(Action::event(this, "send_whistle_delayed"));
+                    }
+                    if (whistlesToSend == 0) {
+                        serverState = "OK: Finished sending unsent whistles";
+                    }
+                } else if (whistlesToSend > 0) {
+                    serverState = "OK: Sending unsent whistles";
+                    connectionPlaylist.clear();
+                    connectionPlaylist.addKeyFrame(Action::pause(1000.f));
+                    connectionPlaylist.addKeyFrame(Action::event(this, "send_whistle_delayed"));
                 }
+            }
+            else if (serverResponseXML.getValue("//status") == "461") { // status no active campaign
+
+                noActiveCampaign = true;
+                serverState = "OK: There is no active campaign";
+
+                if (whistlesToSend > 0) { // unsent whistles from this and previous campain should be removed
+                    whistlesToSend = 0;
+                    logXML.setValue("//unsent", ofToString(whistlesToSend));
+                    logXML.save("log.xml");
+                }
+
+                if(response.request.name == "whistle"){
+                    pixels[beakPixel] -> addBlink(2, status461);
+                    pixels[maintenancePixel] -> addBlink(1, status461);
+                }
+            }
+            
+            else {
+                serverState = "CAUTION: Unimplemented server code. Correct SparrowID?";
+                //ofLogError("Unimplemented server return status: " + serverResponseXML.getValue("//status") + " error: " + serverResponseXML.getValue("//error"));
+                //addLogItem(serverResponseXML.getValue("//serverTime"), ofToString(whistleState), serverResponseXML.getValue("//status"), 0.f); //logXML.save("log.xml");
+                pixels[beakPixel] -> addBlink(2, status400);
+                pixels[maintenancePixel] -> addBlink(1, status400);
             }
         }
 
@@ -1174,7 +1116,7 @@ void ofApp::urlResponse(ofHttpResponse & response){
         pixels[maintenancePixel] -> setColor(ofColor::red);
     }
     
-    if(response.status != -1 || response.status != 302 || response.status != 200) {
+    if(response.status != -1 && response.status != 302 && response.status != 200) {
             ofLog() << "Unimplemented response.status? Code: " << response.status;
     }
 
