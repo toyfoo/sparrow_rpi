@@ -1144,14 +1144,18 @@ void ofApp::urlResponse(ofHttpResponse & response){
         }
 
     }
-    else if(response.status == -1) {
+    //else if(response.status == -1 || response.status == 302) {
+    else {
+        // -1  wifi off (mac)
+        // 302 no wifi authentification (hotspot)
+        //
         ofRemoveAllURLRequests();  //when the connection is down, urlResponse is triggered multiple times a second with code -1
         //ofLog() << "connection error. time: " << ofGetTimestampString("%Y-%n-%e T%H:%M:%S");
         //ofGetTimestampString("%Y-%n-%e T%H:%M:%S:%i%z")
         isLoading = false;
 
         //if (!hasConnectionError) { // in case of connection error, run this only once
-            serverState = "BAD: There is a connection error. Checking Google.";
+            serverState = "BAD: There is a connection error.";
             
             hasConnectionError = true;
             connectionAlive = false;
@@ -1164,8 +1168,9 @@ void ofApp::urlResponse(ofHttpResponse & response){
             pixels[maintenancePixel] -> setColor(ofColor::red);
         //}
     }
-    else {
-            ofLog() << "response.status unimplemented. Code: " << response.status;
+    
+    if(response.status == -1 || response.status == 302) {
+            ofLog() << "unimplemented response.status?. Code: " << response.status;
     }
 
     if (response.request.name == "whistle" && freshMessage) {
