@@ -1,12 +1,6 @@
 /// version 1.0 - 20 march 2016
 /// by thomas laureyssens t@toyfoo.com
 
-
-// todo: 
-// time limits
-// logs on/of
-// retry on failure
-
 #pragma once
 #include "ofMain.h"
 #include "ofxPlaylist.h"
@@ -16,7 +10,7 @@
 #include "ofxTime.h"
 
 //WHISTLEDETECTOR
-#define soundLoad false
+#define soundLoad true
 #if soundLoad
 #include <deque>
 #include <ofxIntegratedWhistleDetector.h>
