@@ -857,8 +857,8 @@ void ofApp::onKeyframe(ofxPlaylistEventArgs& args){
         if (whistlesToSend != logXML.getValue<int>("//unsent")){
             logXML.setValue("//unsent", ofToString(whistlesToSend));
             if (logXML.save("log.xml")){
-                ofLogNotice("Logfile saved.");
-            } else {ofLogNotice("Error saving logfile.");}
+                ofLogNotice("Logfile saved");
+            } else {ofLogNotice("Error saving logfile");}
         }
     }
     
