@@ -346,9 +346,9 @@ void ofApp::update()
 				// mode 2 - playing, do something
 				if (transition.isFromFinal()) {
 
-                    ofLog() << "transition.isFromFinal() - saving the logfile";
-                    logXML.save("log.xml"); // we save this here not to overload the system when the file gets too big
-                    ofLog() << "logfile saved";
+                    //ofLog() << "transition.isFromFinal() - saving the logfile";
+                    //logXML.save("log.xml"); // we save this here not to overload the system when the file gets too big
+                    //ofLog() << "logfile saved";
 
 				}
 				// Here we go to initial state from non-final state, i.e. we do not reach 100%
@@ -364,7 +364,7 @@ void ofApp::update()
                 animPlaylist.clear();
 
                 // TurnOnSomeLEDs(transition.certaintyPercent() - describes how many LEDs);
-                ofLog() << "whistle: initial state. " << ofGetTimestampString("%Y-%n-%e T%H:%M:%S");
+                //ofLog() << "whistle: initial state. " << ofGetTimestampString("%Y-%n-%e T%H:%M:%S");
 
                 if (interactionAllowed()) {
                     pixels[eyePixel]->addBlink(2, eyeWhistleUncertain);
@@ -388,15 +388,13 @@ void ofApp::update()
             if (interactionAllowed()) {
                 pixels[eyePixel]->addBlink(2, eyeWhistleDetected);
                 if (hasConnectionError) {
-                    if (!hasSevereConnectionError) {
-                        whistlesToSend++; //don't send it to the server, but save it locally
+                    whistlesToSend++; //don't send it to the server, but save it locally once over a certain treshold (20)
+                    if (whistlesToSend - logXML.getValue<int>("//unsent") > 20){
                         logXML.setValue("//unsent", ofToString(whistlesToSend));
-                        logXML.save("log.xml");
-                        ofLogNotice("logfile saved");
+                        if (logXML.save("log.xml")){
+                            ofLogNotice("Logfile saved since connection is down");
+                        } else {ofLogNotice("Error saving logfile (connection is down)");}
                     }
-                } else if (noActiveCampaign) {
-                    // TODO add the out of campaign possibility
-                    sendMessageToServer("whistle"); // still send a whistle, because we might be in a new campaign now
                 } else { // in a campaign, and no connection error
                     pixels[maintenancePixel]->addBlink(1, ofColor::white);
                     sendMessageToServer("whistle");
@@ -445,8 +443,8 @@ void ofApp::update()
                 }
 
             }
+            else {pixels[eyePixel]->addBlink(2, ofColor::red);}
 		}
-        else {ofLog() << "whistle is zero";}
 	}
 	//#endif
 
