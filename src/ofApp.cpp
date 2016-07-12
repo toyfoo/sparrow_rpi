@@ -476,8 +476,8 @@ void ofApp::draw(){
     ss << "Time\t" << ofGetHours() << ":" << ofGetMinutes() << ":" << ofGetSeconds() << std::endl;
     if (interactionAllowed()) {ss << "\tSystem time is within the allowed time." << std::endl;}
     else {ss << "\tSystem time not in the allowed time." << std::endl;}
-    if (limitHours) {ss << "\tTime restriction enabled: whistle only within allowed times." << std::endl;}
-    else {ss << "\tTime restriction disabled: whistle anytime." << std::endl;}
+    if (limitHours) {ss << "\tWhistling restricted: only within allowed times." << std::endl;}
+    else {ss << "\tNo restrictions: whistle anytime." << std::endl;}
     ss << std::endl;
     if (connectionAlive) {ss << "Server\tUp. This is good. " << std::endl;}
     else {ss << "Server\tDown. This it not good." << std::endl;}
