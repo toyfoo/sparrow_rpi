@@ -373,6 +373,7 @@ void ofApp::update()
                 }
                 else {
                 	pixels[maintenancePixel]->addBlink(2, profileColor); // whistling outside the allowed time
+                    pixels[eyePixel]->addBlink(1, ofColor::red);
                 }
 
             }
@@ -443,7 +444,6 @@ void ofApp::update()
                 }
 
             }
-            else {pixels[eyePixel]->addBlink(2, ofColor::red);}
 		}
 	}
 	//#endif
@@ -667,6 +667,7 @@ void ofApp::animateBeakAndEyeAmbientAnim() {
 
     using namespace Playlist;
 
+     if (interactionAllowed()) {
         pixels[eyePixel] -> addFade(ofColor::white, 10000.f, false);
         pixels[eyePixel] -> addFade(ofColor::black, 10000.f, false);
         pixels[eyePixel] -> play();
@@ -685,6 +686,7 @@ void ofApp::animateBeakAndEyeAmbientAnim() {
         pixels[beakPixel] -> addSetColor(ofColor::black, false);
         pixels[beakPixel] -> addPause(19050.f, false);
         pixels[beakPixel] -> play();
+     }
 
         animPlaylist.addKeyFrame(Action::pause(20200.f));
         animPlaylist.addKeyFrame(Action::event(this, "animateBeakAndEyeAmbientAnim"));
