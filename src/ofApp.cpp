@@ -237,24 +237,22 @@ void ofApp::setup()
     seedRandomPixelOrder(); //first seed of the randompixelorder
 
     // setup ws281x
-    #ifdef __arm__
-    if (load_ws281xlib){
-		const rpi_hw_t *piVersion = rpi_hw_detect();
-		ledstring = {
-		0,
-		piVersion,
-		TARGET_FREQ,
-		DMA,
-		{
-			{GPIO_PIN, 0, ledCount, ledBrightness },
-		}
-		};
+    #if ws281xLoad
+    const rpi_hw_t *piVersion = rpi_hw_detect();
+    ledstring = {
+        0,
+        piVersion,
+        TARGET_FREQ,
+        DMA,
+        {
+            {GPIO_PIN, 0, ledCount, ledBrightness },
+        }
+    };
 
-		 if (ws2811_init(&ledstring)){
-		 ofLogError("ws2811_init() failed");
-		  }else{
-		   ofLogNotice("ws2811_init() success");
-		  }
+     if (ws2811_init(&ledstring)){
+     ofLogError("ws2811_init() failed");
+      }else{
+       ofLogNotice("ws2811_init() success");
     }
     #endif
 
@@ -460,14 +458,12 @@ void ofApp::update()
 //--------------------------------------------------------------
 void ofApp::draw(){
 
-	#ifdef __arm__
-    if (load_ws281xlib) {
+	#if ws281xLoad
         for (int i = 0; i < ledCount; i++){
             //ledstring.channel[0].leds[i] = createRGB(200,155,255);
             ledstring.channel[0].leds[i] = pixels[i] -> color.getHex();
         }
         ws2811_render(&ledstring);
-    }
 	#endif
 	
     ofBackground(ofColor::lightGray);

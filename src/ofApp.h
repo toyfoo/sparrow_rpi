@@ -18,7 +18,8 @@
 #endif
 
 //--For WS281x RGB LEDS--
-#ifdef __arm__
+#define ws281xLoad true
+#if ws281xLoad
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,7 +50,6 @@ extern "C" {
 class ofApp : public ofBaseApp{
 	
 	//debugging
-	bool load_ws281xlib;
 	string serverState;
 
     //WHISTLEDETECTOR
@@ -191,7 +191,7 @@ public:
     bool interactionAllowed();
     void addLogItem(string datetime, string animation, string serverresponse, float frequency);
 
-    #ifdef __arm__
+    #if ws281xLoad
     ws2811_t ledstring;
     #endif
     int ledBrightness;
