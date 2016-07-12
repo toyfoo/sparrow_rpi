@@ -694,7 +694,7 @@ void ofApp::animateBeakAndEyeAmbientAnim() {
 
 //--------------------------------------------------------------
 bool ofApp::interactionAllowed() {
-    if ((ofGetHours() > onHour && ofGetHours() <= offHour) || !limitHours) {
+    if ((ofGetHours() >= onHour && ofGetHours() <= offHour) || !limitHours) {
         return true;
    } else {
         return false;
