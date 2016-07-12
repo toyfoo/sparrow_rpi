@@ -257,7 +257,7 @@ void ofApp::setup()
     #endif
 
     // setup WHISTLEDETECTOR
-	#if loadSound
+	#if soundLoad
     setupDetector();
     setupSequenceDetector();
     #endif
@@ -1244,6 +1244,7 @@ void ofApp::addLogItem(string datetime, string animation, string serverresponse,
 void ofApp::setupDetector()
 {
     #if soundLoad
+    ofLog() << "setupDetector()";
     // Set detector parameters
     // Use default parameters
      detector.setHzPerWindow(130);
@@ -1257,6 +1258,8 @@ void ofApp::setupDetector()
     // detected whistles in internal buffer. ofxIntegratedWhistleDetector::getNextWhistle() must be
     // used to retrieve available whistles in FIFO order from the buffer
     detector.open();
+    ofLog() << "end setupDetector()";
+    
     #endif
 }
 
