@@ -8,6 +8,9 @@
 #include "ofxGui.h"
 #include "ofxSvg.h"
 #include "ofxTime.h"
+#include "wiringPi.h"
+#include "sr595.h"
+#include "displayDriver.h"
 
 //WHISTLEDETECTOR
 #define soundLoad true
@@ -48,10 +51,14 @@ extern "C" {
 
 
 class ofApp : public ofBaseApp{
-	
+
 	//debugging
 	string serverState;
-
+	//display 7 segments
+	int total_whistle;
+	DisplayDriver *counterDisplay;
+	DisplayDriver *chronoDisplay;
+	int campaign_duration;
     //WHISTLEDETECTOR
     #if soundLoad
     ofxIntegratedWhistleDetector detector;
@@ -59,7 +66,6 @@ class ofApp : public ofBaseApp{
     deque<pair<ofxWhistleSequenceDetector::Transition, ofxIntegratedWhistleDetector::Whistle> > transitions;
 	static const size_t MaxTransitions = 20; // Count of last transitions and transition queue (with whistles those cause transitions) to be printed on screen
     #endif
-
 	//LED-related
     int eyePixel;
     int beakPixel;
@@ -111,7 +117,7 @@ class ofApp : public ofBaseApp{
     int discoChance;
     int discoTried;
 
-    
+
     int whistleState;
     float lastWhistleFrequency; // used to log the frequency, once the timestamp is returned from the server.
     bool limitHours;
